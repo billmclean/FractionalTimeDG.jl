@@ -1,0 +1,8 @@
+name = "FractionalTimeDG"
+uuid = "74b2d96b-41ff-44fe-90c4-fb8dc9918b5a"
+authors = ["William McLean <w.mclean@unsw.edu.au>"]
+version = "0.1.0"
+
+[deps]
+ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+GaussQuadrature = "d54b0c1a-921d-58e0-8e36-89d8069c0969"
