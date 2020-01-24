@@ -1,10 +1,30 @@
 module FractionalTimeDG
 
 using ArgCheck
-using GaussQuadrature
+import GaussQuadrature
+import SpecialFunctions
 
-export coef_G, coef_K
-export legendre_polys!, deriv_legendre_polys!
+export coef_G, coef_K, coef_H0, coef_H1
+
+Γ(x) = SpecialFunctions.gamma(x)
+
+function gauss_legendre_rules(::Type{T}, M::Integer) where T <: AbstractFloat
+    x = Vector{Vector{T}}(undef, M)
+    w = Vector{Vector{T}}(undef, M)
+    for m = 1:M
+        x[m], w[m] = GaussQuadrature.legendre(T, m)
+    end
+    return x, w
+end
+
+function gauss_jacobi_rules(M::Integer, α::T, β::T) where T <: AbstractFloat
+    x = Vector{Vector{T}}(undef, M)
+    w = Vector{Vector{T}}(undef, M)
+    for m = 1:M
+        x[m], w[m] = GaussQuadrature.jacobi(m, α, β)
+    end
+    return x, w
+end
 
 function coef_G(::Type{T}, rn::Integer) where T <: AbstractFloat
     G = ones(T, rn, rn)
@@ -31,6 +51,22 @@ end
 coef_K(rn, rnm1) = coef_K(Float64, rn, rnm1)
 
 """
+    P(n, τ)
+
+Returns the value of the Legendre polynomial of degree `n` at `τ`.
+(Recursive function used in `../test`).
+"""
+function P(n::Integer, τ::T) where T <: AbstractFloat
+    if n == 0
+        return one(T)
+    elseif n == 1
+        return τ
+    else
+        return ( (2n-1) * τ * P(n-1, τ) - (n-1) * P(n-2, τ) ) / n
+    end
+end
+
+"""
     legendre_polys!(P, τ)
 
 If `τ` is a scalar, then `P` is a vector with `P[n+1]` equal to the value 
@@ -39,7 +75,7 @@ of the Legendre polynomial of degree `n` at `τ`.
 If `τ` is a vector, then `P` is a matrix with `P[n+1,j]` equal to the value
 of the Legendre polynomial of degree `n` at `τ[j]`.
 """
-function legendre_polys!(P::Vector{T}, τ::T) where T <: AbstractFloat
+function legendre_polys!(P::AbstractVector{T}, τ::T) where T <: AbstractFloat
     I = length(P)
     if I ≥ 1
         P[1] = one(T)
@@ -47,8 +83,8 @@ function legendre_polys!(P::Vector{T}, τ::T) where T <: AbstractFloat
     if I ≥ 2
         P[2] = τ
     end
-    for j = 1:J, i = 1:I-2
-        P[i+2] = ((2i+1) * τ * P[n+1] - i * P[i] ) / (i+1)
+    for j = 1:I, i = 1:I-2
+        P[i+2] = ((2i+1) * τ * P[i+1] - i * P[i] ) / (i+1)
     end
 end
 
@@ -72,8 +108,25 @@ function legendre_polys!(P::Matrix{T}, τ::AbstractVector{T}
     end
 end
 
-function deriv_legendre_polys!(dP::Vector{T}, τ::T) where T <: AbstractFloat
-    I = length(I)
+"""
+    dP(n, τ)
+
+Returns the value of the derivative of the Legendre polynomial of degree `n` 
+at `τ`.  (Recursive function used in `../test`).
+"""
+function dP(n::Integer, τ::T) where T <: AbstractFloat
+    if n == 0
+        return zero(T)
+    elseif n == 1
+        return one(T)
+    else
+        return ( (2n-1) * τ * dP(n-1, τ) - n * dP(n-2, τ) ) / ( n - 1 )
+    end
+end
+
+function deriv_legendre_polys!(dP::AbstractVector{T}, τ::T
+                              ) where T <: AbstractFloat
+    I = length(dP)
     if I ≥ 1
         dP[1] = zero(T)
     end
@@ -107,41 +160,138 @@ end
 
 function coef_H0(r::Integer, α::T) where T <: AbstractFloat
     H0 = zeros(T, r, r)
-    z, wz = legendre(T, 2r)
-    y, wy = jacobi(2r, one(T), α-1)
+    y, wy = gauss_jacobi_rules(2r, one(T), α-1)
+    z, wz = gauss_legendre_rules(T, r-1)
     Ψ = Array{T}(undef, r)
     dΨ = Array{T}(undef, r)
-    Φ = Array{T}(undef, J2)
+    Φ = Array{T}(undef, 2r)
     for j = 1:r, i = 1:r
-        for my = 1:length(y)
+        My = ceil(Integer, (i+j-1)/2)
+        Mz = ceil(Integer, (i+j)/2) - 1
+        for my = 1:My
             Φ[my] = zero(T)
-            for mz = 1:length(z)
-                τ = ( y[my] - z[mz] * y[my] + 1 + z[mz] ) / 2
-                σ = τ - 1 - y[my]
-                legendre_polys!(Ψ, σ)
-                deriv_legendre_polys!(dΨ, τ)
-                Φ[my] += wy[my] * Ψ[j] * dΨ[i]
+            y_ = y[My][my]
+            for mz = 1:Mz
+                z_ = z[Mz][mz]
+                τ = ( y_ - z_ * y_ + 1 + z_ ) / 2
+                σ = τ - 1 - y_
+                legendre_polys!(view(Ψ, 1:j), σ)
+                deriv_legendre_polys!(view(dΨ, 1:i), τ)
+                Φ[my] += wz[Mz][mz] * Ψ[j] * dΨ[i]
             end
             Φ[my] /= 2
         end
-        for my = 1:length(y)
-            H0[i,j] -= wy[my] * Φ[my]
+        for my = 1:My
+            H0[i,j] -= wy[My][my] * Φ[my]
         end
     end
-    σ, w = jacobi(ceil(Integer, r/2), α-1, zero(T))
-    Ψ = Array{T}(undef, r, length(σ))
-    legendre_polys!(Ψ, σ)
+    M = ceil(Integer, r/2)
+    σ, w = gauss_jacobi_rules(M, α-1, zero(T))
+    Ψ = Array{T}(undef, r)
     c = 1 / ( 2^α * Γ(α) )
     for j = 1:r
-        for m = 1:length(σ)
-            H0[1,j] += w[m] * Ψ[j,m]
+        M = ceil(Integer, j/2)
+        for m = 1:M
+            σ_ = σ[M][m]
+            legendre_polys!(view(Ψ, 1:j), σ_)
+            H0[1,j] += w[M][m] * Ψ[j]
         end
         for i = 2:r
             H0[i,j] += H0[1,j]
         end
-        H0[i,j] *= c
+        for i = 1:r
+            H0[i,j] *= c
+        end
     end
     return H0
+end
+
+function mathcal_A!(A::Vector{T}, ℓ::Integer, α::T, Ψ::Matrix{T},
+                    σ::Vector{T}, w::Vector{T}) where T <: AbstractFloat
+    r = size(A, 1)
+    for j = 1:r
+        s = A[i,j]
+        for m = 1:length(σ)
+            Δ = ( 1 - σ[m] ) / ( 2ℓ )
+            s += w[m] * ( 1 + Δ )^(α-1) * Ψ[m,j]
+        end
+        A[j] = s
+    end
+end
+
+function coef_H1(r::Integer, α::T, M::Integer) where T <: AbstractFloat
+    H1 = zeros(T, r, r)
+    σ1, w1 = GaussQuadrature.legendre(T, M)
+    Ψ = Array{T}(undef, r, M)
+    legendre_polys!(Ψ, σ1)                 
+    for j = 1:r
+        Aj = zero(T)
+        for m = 1:M
+            Δ = ( 1 - σ1[m] ) / 2
+            Aj += w1[m] * ( 1 + Δ )^(α-1) * Ψ[j,m]
+        end
+        for i = 1:r
+            H1[i,j] = Aj
+        end
+    end
+    σ2, w2 = GaussQuadrature.jacobi(M, α-1, zero(T))
+    legendre_polys!(Ψ, σ2)
+    for j = 1:r
+        Bj = zero(T)
+        for m = 1:M
+            Bj += w2[m] * Ψ[j,m]
+        end
+        Bj *= 2^(1-α)
+        pow = one(T)
+        for i = 1:r
+            pow = -pow
+            H1[i,j] += pow * Bj
+        end
+    end
+    σ3, w3 = GaussQuadrature.jacobi(M, zero(T), α)
+    z, wz = GaussQuadrature.legendre(T, M)
+    z .= ( z .+ 1 ) / 2
+    wz .= wz/2
+    dΨ = Array{T}(undef, r, M)
+    deriv_legendre_polys!(dΨ, σ3)
+    for j = 1:r
+        for i = 1:r
+            Cij_1 = zero(T)
+            for m3 = 1:M
+                σ_ = σ3[m3]
+                inner = zero(T)
+                for mz = 1:M
+                    z_ = z[mz]
+                    legendre_polys!(view(Ψ, 1:j, 1), 1 - z_*(1+σ_))
+                    inner += wz[mz] * (1+z_)^(α-1) * Ψ[j,1]
+                end
+                Cij_1 += w3[m3] * dΨ[i,m3] * inner
+            end
+            Cij_1 *= 2^(1-α)
+            H1[i,j] -= Cij_1
+        end
+    end
+    σ4, w4 = GaussQuadrature.jacobi(M, α, zero(T))
+    legendre_polys!(Ψ, σ4)
+    for j = 1:r
+        for i = 1:r
+            Cij_2 = zero(T)
+            for m4 = 1:M
+                σ_ = σ4[m4]
+                inner = zero(T)
+                for mz = 1:M
+                    z_ = z[mz]
+                    deriv_legendre_polys!(view(dΨ, 1:i, 1), z_*(1-σ_)-1)
+                    inner += wz[mz] * (z_+1)^(α-1) * dΨ[i,1]
+                end
+                Cij_2 += w4[m4] * Ψ[j,m4] * inner
+            end
+            Cij_2 *= 2^(1-α)
+            H1[i,j] -= Cij_2
+            H1[i,j] /= 2Γ(α)
+        end
+    end
+    return H1
 end
 
 end # module FractionalTimeDG
