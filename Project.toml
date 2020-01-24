@@ -6,3 +6,4 @@ version = "0.1.0"
 [deps]
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
 GaussQuadrature = "d54b0c1a-921d-58e0-8e36-89d8069c0969"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
