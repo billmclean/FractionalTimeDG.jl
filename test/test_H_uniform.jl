@@ -6,7 +6,7 @@ r = 4
 H0 = coef_H0(r, α)
 
 # \int_0^\tau (\tau-\sigma)^{\alpha-1} P_{j-1}(\tau)\,d\tau
-function inner_integral(j::Integer, τ::T, α::T,
+function inner_integral_0(j::Integer, τ::T, α::T,
                        rtol) where T <: AbstractFloat
     I, err = quadgk(-one(T), τ, rtol=rtol) do σ
         (τ-σ)^(α-1) * P(j-1, σ) 
@@ -14,7 +14,7 @@ function inner_integral(j::Integer, τ::T, α::T,
     return I
 end
 
-function analytical_inner_integral(j::Integer, τ::T, 
+function analytical_inner_integral_0(j::Integer, τ::T, 
                                    α::T) where T <: AbstractFloat
     n = j - 1
     pow = 1 / α
@@ -27,7 +27,7 @@ function analytical_inner_integral(j::Integer, τ::T,
 end
 
 # special case α = 1
-function inner_integral_1(j::Integer, τ::AbstractFloat)
+function inner_integral_0_1(j::Integer, τ::AbstractFloat)
     n = j - 1
     if n == 0
         return τ + 1
@@ -41,19 +41,19 @@ function brute_force_H0(r::Integer, α::T, rtol=1e-8) where T <: AbstractFloat
     c = 1 / (2^α*Γ(α))
     for j = 1:r, i = 1:r
         I, err = quadgk(-one(T), one(T), rtol=rtol) do τ
-            dP(i-1, τ) * inner_integral(j, τ, α, rtol)
+            dP(i-1, τ) * inner_integral_0(j, τ, α, rtol)
         end
-        H0[i,j] = c * ( inner_integral(j, one(T), α, rtol) - I )
+        H0[i,j] = c * ( inner_integral_0(j, one(T), α, rtol) - I )
     end
     return H0
 end
 
 bf_H0 = brute_force_H0(r, α)
 
-err = bf_H0 - H0
-@test all( abs.(err) .< 1e-8 )
+err0 = bf_H0 - H0
+@test all( abs.(err0) .< 1e-8 )
 
-H1 = coef_H1(r, α, r+2)
+H = coef_H_uniform(5, r, α, r+2)
 
 Δ(ℓ, τ) = τ / (2ℓ)
 
@@ -71,21 +71,23 @@ function inner_integral_2(i::Integer, σ::T, α::T, rtol) where T <: AbstractFlo
     return I
 end
 
-function inner_integral_3(j::Integer, τ::T, α::T, rtol) where T <: AbstractFloat
+function inner_integral(ℓ::Integer, j::Integer, τ::T, α::T, 
+                        rtol) where T <: AbstractFloat
     I, err = quadgk(-one(T), one(T), rtol=rtol) do σ 
-        ( 1 + Δ(1,τ-σ) )^(α-1) * P(j-1, σ)
+        ( 1 + Δ(ℓ,τ-σ) )^(α-1) * P(j-1, σ)
     end
     return I
 end
-function brute_force_H1(r::Integer, α::T, rtol=1e-8) where T <: AbstractFloat
-    H1 = Array{T}(undef, r, r)
-    c = 1 / ( 2Γ(α) )
+function brute_force_H(ℓ::Integer, r::Integer, α::T, 
+                       rtol=1e-8) where T <: AbstractFloat
+    Hℓ = Array{T}(undef, r, r)
+    c = ℓ^(α-1) / ( 2Γ(α) )
     for j = 1:r
         Aj, err = quadgk(-one(T), one(T), rtol=rtol) do σ
-            (1+Δ(1,1-σ))^(α-1) * P(j-1,σ)
+            (1+Δ(ℓ,1-σ))^(α-1) * P(j-1,σ)
         end
         Bj, err = quadgk(-one(T), one(T), rtol=rtol) do σ
-            (1-Δ(1,1+σ))^(α-1) * P(j-1,σ)
+            (1-Δ(ℓ,1+σ))^(α-1) * P(j-1,σ)
         end
         pow = one(T)
         for i = 1:r
@@ -98,15 +100,20 @@ function brute_force_H1(r::Integer, α::T, rtol=1e-8) where T <: AbstractFloat
 #            end
 #            Cij_2 *= 2^(1-α)
             Cij, err = quadgk(-one(T), one(T), rtol=rtol) do τ
-                dP(i-1,τ) * inner_integral_3(j, τ, α, rtol)
+                dP(i-1,τ) * inner_integral(ℓ, j, τ, α, rtol)
             end
             pow = -pow
-            H1[i,j] = c * ( Aj + pow * Bj - Cij )
+            Hℓ[i,j] = c * ( Aj + pow * Bj - Cij )
         end
     end
-    return H1
+    return Hℓ
 end
 
-bf_H1 = brute_force_H1(r, α)
-err = bf_H1 - H1
-@test all( abs.(err) .< 1e-7 )
+bf_H1 = brute_force_H(1, r, α)
+err1 = bf_H1 - H[:,:,1]
+@test all( abs.(err1) .< 1e-8 )
+
+bf_H4 = brute_force_H(4, r, α)
+err4 = bf_H4 - H[:,:,4]
+@test all( abs.(err4) .< 1e-12 )
+
