@@ -4,7 +4,7 @@ using ArgCheck
 import GaussQuadrature
 import SpecialFunctions
 
-export coef_G, coef_K, coef_H0, coef_H1
+export coef_G, coef_K, coef_H0, coef_H1, coef_H_uniform
 
 Γ(x) = SpecialFunctions.gamma(x)
 
@@ -159,13 +159,21 @@ function deriv_legendre_polys!(dP::Matrix{T}, τ::AbstractVector{T}
 end
 
 function coef_H0(r::Integer, α::T) where T <: AbstractFloat
-    H0 = zeros(T, r, r)
+    H0 = Array{T}(undef, r, r)
+    coef_H0!(H0, α)
+    return H0
+end
+
+function coef_H0!(H0::Matrix{T}, α::T) where T <: AbstractFloat
+    r = size(H0, 1)
+    @argcheck size(H0, 2) == r
     y, wy = gauss_jacobi_rules(2r, one(T), α-1)
     z, wz = gauss_legendre_rules(T, r-1)
     Ψ = Array{T}(undef, r)
     dΨ = Array{T}(undef, r)
     Φ = Array{T}(undef, 2r)
     for j = 1:r, i = 1:r
+        H0[i,j] = zero(T)
         My = ceil(Integer, (i+j-1)/2)
         Mz = ceil(Integer, (i+j)/2) - 1
         for my = 1:My
@@ -203,24 +211,18 @@ function coef_H0(r::Integer, α::T) where T <: AbstractFloat
             H0[i,j] *= c
         end
     end
-    return H0
-end
-
-function mathcal_A!(A::Vector{T}, ℓ::Integer, α::T, Ψ::Matrix{T},
-                    σ::Vector{T}, w::Vector{T}) where T <: AbstractFloat
-    r = size(A, 1)
-    for j = 1:r
-        s = A[i,j]
-        for m = 1:length(σ)
-            Δ = ( 1 - σ[m] ) / ( 2ℓ )
-            s += w[m] * ( 1 + Δ )^(α-1) * Ψ[m,j]
-        end
-        A[j] = s
-    end
 end
 
 function coef_H1(r::Integer, α::T, M::Integer) where T <: AbstractFloat
-    H1 = zeros(T, r, r)
+    H1 = Array{T}(undef, r, r)
+    coef_H1!(H1, α, M)
+    return H1
+end
+
+function coef_H1!(H1::AbstractMatrix{T}, α::T, 
+                  M::Integer) where T <: AbstractFloat
+    r = size(H1, 1)
+    @argcheck size(H1, 2) == r
     σ1, w1 = GaussQuadrature.legendre(T, M)
     Ψ = Array{T}(undef, r, M)
     legendre_polys!(Ψ, σ1)                 
@@ -291,7 +293,46 @@ function coef_H1(r::Integer, α::T, M::Integer) where T <: AbstractFloat
             H1[i,j] /= 2Γ(α)
         end
     end
-    return H1
+end
+
+function coef_H_uniform(N::Integer, r::Integer, α::T, 
+                        M::Integer) where T <: AbstractFloat
+    H = Array{T}(undef, r, r, N-1)
+    coef_H1!(view(H, :, :, 1), α, M)
+    σ, w = GaussQuadrature.legendre(T, M)
+    Ψ = Array{T}(undef, r, M)
+    legendre_polys!(Ψ, σ)
+    τ = σ
+    dΨ = Array{T}(undef, r, M)
+    deriv_legendre_polys!(dΨ, τ)
+    for ℓ = 2:N-1
+        c = ℓ^(α-1) / ( 2Γ(α) )
+        for j = 1:r
+            Aj = zero(T)
+            Bj = zero(T)
+            for m = 1:M
+                Δ = ( 1 - σ[m] ) / ( 2ℓ )
+                Aj += w[m] * (1+Δ)^(α-1) * Ψ[j,m]
+                Δ = ( 1 + σ[m] ) / ( 2ℓ )
+                Bj += w[m] * (1-Δ)^(α-1) * Ψ[j,m]
+            end
+            pow = one(T)
+            for i = 1:r
+                Cij = zero(T)
+                for mτ = 1:M
+                    inner = zero(T)
+                    for mσ = 1:M
+                        Δ = ( τ[mτ] - σ[mσ] ) / ( 2ℓ )
+                        inner += w[mσ] * (1+Δ)^(α-1) * Ψ[j,mσ]
+                    end
+                    Cij += w[mτ] * dΨ[i,mτ] * inner
+                end
+                pow = -pow
+                H[i,j,ℓ] = c * ( Aj + pow * Bj - Cij )
+            end
+        end
+    end
+    return H
 end
 
 end # module FractionalTimeDG
