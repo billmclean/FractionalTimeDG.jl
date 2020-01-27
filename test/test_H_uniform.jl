@@ -117,3 +117,9 @@ bf_H4 = brute_force_H(4, r, α)
 err4 = bf_H4 - H[:,:,4]
 @test all( abs.(err4) .< 1e-12 )
 
+alt_H = Array{Float64}(undef, r, r, 4)
+coef_H_uniform!(alt_H, 3:4, r, α, r+2)
+err3 = alt_H[:,:,3] - H[:,:,3]
+err4 = alt_H[:,:,4] - H[:,:,4]
+@test all( abs.(err3) .< 1e-10 )
+@test all( abs.(err4) .< 1e-12 )

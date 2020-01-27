@@ -4,7 +4,7 @@ using ArgCheck
 import GaussQuadrature
 import SpecialFunctions
 
-export coef_G, coef_K, coef_H0, coef_H1, coef_H_uniform
+export coef_G, coef_K, coef_H0, coef_H1, coef_H_uniform, coef_H_uniform!
 
 Γ(x) = SpecialFunctions.gamma(x)
 
@@ -333,6 +333,43 @@ function coef_H_uniform(N::Integer, r::Integer, α::T,
         end
     end
     return H
+end
+
+function coef_H_uniform!(H::Array{T,3}, ℓ_range::UnitRange, 
+                         r::Integer, α::T, M::Integer) where T <: AbstractFloat
+    @argcheck ℓ_range.start ≥ 2
+    @argcheck ℓ_range.stop ≤ size(H, 3)
+    r = size(H, 1)
+    @argcheck size(H, 2) == r
+    σ, w = GaussQuadrature.legendre(T, M)
+    Ψ = Array{T}(undef, r, M)
+    legendre_polys!(Ψ, σ)
+    coef_H_uniform!(H, ℓ_range, α, w, σ, Ψ)
+end
+
+function coef_H_uniform!(H::Array{T,3}, ℓ_range::UnitRange, 
+                         α::T, w::Vector{T}, σ::Vector{T},
+                         Ψ::Matrix{T}) where T <: AbstractFloat
+    r = size(H, 1)
+    τ = σ
+    M = length(w)
+    for ℓ in ℓ_range
+        c = - ((1-α)/(4Γ(α))) * ℓ^(α-2) 
+        for j = 1:r
+            for i = 1:r
+                outer = zero(T)
+                for mτ = 1:M
+                    inner = zero(T)
+                    for mσ = 1:M
+                        Δ = ( τ[mτ] - σ[mσ] ) / ( 2ℓ )
+                        inner += w[mσ] * (1+Δ)^(α-2) * Ψ[j,mσ]
+                    end
+                    outer += w[mτ] * Ψ[i,mτ] * inner
+                end
+                H[i,j,ℓ] = c * outer
+            end
+        end
+    end
 end
 
 end # module FractionalTimeDG
