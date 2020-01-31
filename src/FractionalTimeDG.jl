@@ -373,42 +373,83 @@ function coef_H1_uniform!(H1::AbstractMatrix{T}, α::T,
     end
 end
 
-function coef_H_uniform(N::Integer, r::Integer, α::T, 
-                        M::Integer) where T <: AbstractFloat
+function coef_H_uniform_1!(Hℓ::AbstractMatrix{T}, ℓ::Integer, α::T, 
+                           σ::Vector{T}, w::Vector{T}, Ψ::Matrix{T}, 
+                           dΨ::Matrix{T}) where T <: AbstractFloat
+    r = size(Hℓ, 1)
+    M = length(σ)
+    c = ℓ^(α-1) / ( 2Γ(α) )
+    τ = σ
+    for j = 1:r
+        Aj = zero(T)
+        Bj = zero(T)
+        for m = 1:M
+            Δ = ( 1 - σ[m] ) / ( 2ℓ )
+            Aj += w[m] * (1+Δ)^(α-1) * Ψ[j,m]
+            Δ = ( 1 + σ[m] ) / ( 2ℓ )
+            Bj += w[m] * (1-Δ)^(α-1) * Ψ[j,m]
+        end
+        pow = one(T)
+        for i = 1:r
+            Cij = zero(T)
+            for mτ = 1:M
+                inner = zero(T)
+                for mσ = 1:M
+                    Δ = ( τ[mτ] - σ[mσ] ) / ( 2ℓ )
+                    inner += w[mσ] * (1+Δ)^(α-1) * Ψ[j,mσ]
+                end
+                Cij += w[mτ] * dΨ[i,mτ] * inner
+            end
+            pow = -pow
+            Hℓ[i,j] = c * ( Aj + pow * Bj - Cij )
+        end
+    end
+end
+
+function coef_H_uniform_2!(Hℓ::AbstractMatrix{T}, ℓ::Integer, α::T, 
+                           σ::Vector{T}, w::Vector{T},
+                           Ψ::Matrix{T}) where T <: AbstractFloat
+    r = size(Hℓ, 1)
+    M = length(σ)
+    c = ℓ^(α-1) / ( 2Γ(α) )
+    τ = σ
+    c = - ((1-α)/(4Γ(α))) * ℓ^(α-2) 
+    for j = 1:r
+        for i = 1:r
+            outer = zero(T)
+            for mτ = 1:M
+                inner = zero(T)
+                for mσ = 1:M
+                    Δ = ( τ[mτ] - σ[mσ] ) / ( 2ℓ )
+                    inner += w[mσ] * (1+Δ)^(α-2) * Ψ[j,mσ]
+                end
+                outer += w[mτ] * Ψ[i,mτ] * inner
+            end
+            Hℓ[i,j] = c * outer
+        end
+    end
+end
+
+function coef_H_uniform(N::Integer, r::Integer, α::T, M::Integer,
+                        version::Integer) where T <: AbstractFloat
     H = Array{T}(undef, r, r, N-1)
     coef_H1_uniform!(view(H, :, :, 1), α, M)
     σ, w = GaussQuadrature.legendre(T, M)
     Ψ = Array{T}(undef, r, M)
     legendre_polys!(Ψ, σ)
     τ = σ
-    dΨ = Array{T}(undef, r, M)
-    deriv_legendre_polys!(dΨ, τ)
-    for ℓ = 2:N-1
-        c = ℓ^(α-1) / ( 2Γ(α) )
-        for j = 1:r
-            Aj = zero(T)
-            Bj = zero(T)
-            for m = 1:M
-                Δ = ( 1 - σ[m] ) / ( 2ℓ )
-                Aj += w[m] * (1+Δ)^(α-1) * Ψ[j,m]
-                Δ = ( 1 + σ[m] ) / ( 2ℓ )
-                Bj += w[m] * (1-Δ)^(α-1) * Ψ[j,m]
-            end
-            pow = one(T)
-            for i = 1:r
-                Cij = zero(T)
-                for mτ = 1:M
-                    inner = zero(T)
-                    for mσ = 1:M
-                        Δ = ( τ[mτ] - σ[mσ] ) / ( 2ℓ )
-                        inner += w[mσ] * (1+Δ)^(α-1) * Ψ[j,mσ]
-                    end
-                    Cij += w[mτ] * dΨ[i,mτ] * inner
-                end
-                pow = -pow
-                H[i,j,ℓ] = c * ( Aj + pow * Bj - Cij )
-            end
+    if version == 1
+        dΨ = Array{T}(undef, r, M)
+        deriv_legendre_polys!(dΨ, τ)
+        for ℓ = 2:N-1
+            coef_H_uniform_1!(view(H, :, :, ℓ), ℓ, α, σ, w, Ψ, dΨ)
         end
+    elseif version == 2
+        for ℓ = 2:N-1
+            coef_H_uniform_2!(view(H, :, :, ℓ), ℓ, α, σ, w, Ψ)
+        end
+    else
+        throw(ArgumentError("version must be 1 or 2"))
     end
     return H
 end
@@ -422,11 +463,11 @@ function coef_H_uniform!(H::Array{T,3}, ℓ_range::UnitRange,
     σ, w = GaussQuadrature.legendre(T, M)
     Ψ = Array{T}(undef, r, M)
     legendre_polys!(Ψ, σ)
-    coef_H_uniform!(H, ℓ_range, α, w, σ, Ψ)
+    coef_H_uniform!(H, ℓ_range, α, σ, w, Ψ)
 end
 
 function coef_H_uniform!(H::Array{T,3}, ℓ_range::UnitRange, 
-                         α::T, w::Vector{T}, σ::Vector{T},
+                         α::T, σ::Vector{T}, w::Vector{T},
                          Ψ::Matrix{T}) where T <: AbstractFloat
     r = size(H, 1)
     τ = σ
