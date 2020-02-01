@@ -5,8 +5,9 @@ using PyPlot
 N = 1000
 r = 4
 M = 2r
+version = 1
 
-H = coef_H_uniform(N, r, α, M)
+H = coef_H_uniform(N, r, α, M, version)
 
 ℓ = collect(1:N-1)
 
@@ -35,9 +36,9 @@ end
 
 γ = max_antidiags(H)
 
-figure(1)
+figure(2)
 loglog(ℓ, γ)
 legend([latexstring("i+j=$m") for m = 2:2r])
 grid(true)
 xlabel(L"$\ell$", fontsize=12)
-savefig("fig1.pdf")
+savefig("fig2.pdf")
