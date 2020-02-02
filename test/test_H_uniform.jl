@@ -53,7 +53,8 @@ bf_H0 = brute_force_H0(r, α)
 err0 = bf_H0 - H0
 @test all( abs.(err0) .< 1e-8 )
 
-H = coef_H_uniform(5, r, α, r+2)
+version = 1
+H = coef_H_uniform(5, r, α, r+2, version)
 
 Δ(ℓ, τ) = τ / (2ℓ)
 
@@ -102,6 +103,7 @@ function brute_force_H(ℓ::Integer, r::Integer, α::T,
             Cij, err = quadgk(-one(T), one(T), rtol=rtol) do τ
                 dP(i-1,τ) * inner_integral(ℓ, j, τ, α, rtol)
             end
+            println("\tC_$i,$j = $Cij")
             pow = -pow
             Hℓ[i,j] = c * ( Aj + pow * Bj - Cij )
         end
