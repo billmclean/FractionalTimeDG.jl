@@ -1,6 +1,7 @@
 module FractionalTimeDG
 
 using ArgCheck
+using OffsetArrays
 import GaussQuadrature
 import SpecialFunctions
 

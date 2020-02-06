@@ -1,10 +1,7 @@
-import FractionalTimeDG.Γ, 
-       FractionalTimeDG.P, 
-       FractionalTimeDG.dP, 
-       FractionalTimeDG.legendre_polys!,
-       FractionalTimeDG.deriv_legendre_polys!,
-       QuadGK.quadgk
-       OffsetArrays.OffsetArray
+import FractionalTimeDG, SpecialFunctions
+using QuadGK: quadgk
+
+Γ = SpecialFunctions.gamma
 
 function Δ(n::Integer, ℓ::Integer, τ::T, σ::T, 
            t::OffsetArray{T}) where T <: AbstractFloat

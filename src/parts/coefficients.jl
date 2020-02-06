@@ -364,3 +364,21 @@ function coef_H_uniform!(H::Array{T,3}, ℓ_range::UnitRange,
         end
     end
 end
+
+function gauss_legendre_rules(::Type{T}, M::Integer) where T <: AbstractFloat
+    x = Vector{Vector{T}}(undef, M)
+    w = Vector{Vector{T}}(undef, M)
+    for m = 1:M
+        x[m], w[m] = GaussQuadrature.legendre(T, m)
+    end
+    return x, w
+end
+
+function gauss_jacobi_rules(M::Integer, α::T, β::T) where T <: AbstractFloat
+    x = Vector{Vector{T}}(undef, M)
+    w = Vector{Vector{T}}(undef, M)
+    for m = 1:M
+        x[m], w[m] = GaussQuadrature.jacobi(m, α, β)
+    end
+    return x, w
+end
