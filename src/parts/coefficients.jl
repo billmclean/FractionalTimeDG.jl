@@ -23,6 +23,40 @@ end
 
 coef_K(rn, rnm1) = coef_K(Float64, rn, rnm1)
 
+function coef_H(r::Vector{Integer}, α::T, t::OffsetVector{T}, 
+                M::Integer) where T <: AbstractFloat
+    n = length(r)
+    H = Vector{Matrix{T}}
+    for ℓ = 1:n
+        H[ℓ] = Array{T}(undef, r[n], r[ℓ])
+    end
+    coef_H!(H, α, t, M)
+end
+
+function coef_H!(H::Vector{Matrix{T}}, α::T, t::OffsetVector{T},
+                 M::Integer) where T <: AbstractFloat
+    n = length(H)
+    rn = size(H[n], 1)
+    coef_H0(H[n], α)
+    kn = t[n] - t[n-1]
+    for j = 1:rn, i = 1:rn
+        H[n][i,j] *= kn^α 
+    end
+    rnm1 = size(H[n-1], 2)
+    coef_H1!(H[n-1], n, α, t, M)
+    rmax = rn
+    for ℓ = 1:n-2
+        rℓ = size(H[ℓ], 2)
+        rmax = max(rmax, rℓ)
+    end
+    σ, wσ = GaussQuadrature.legendre(T, M)
+    Ψ = Array{T}(rmax, M)
+    legendre_polys!(Ψ, σ)
+    for ℓ = n-2:-1:1
+        H_history!(H[ℓ], n, ℓ, t, Ψ, σ, wσ)
+    end
+end
+
 function coef_H0(r::Integer, α::T) where T <: AbstractFloat
     H0 = Array{T}(undef, r, r)
     coef_H0!(H0, α)
@@ -78,89 +112,29 @@ function coef_H0!(H0::Matrix{T}, α::T) where T <: AbstractFloat
     end
 end
 
-function coef_H1(r::Integer, α::T, kn::T, knm1::T, 
-                 M::Integer) where T <: AbstractFloat
-    H1 = Array{T}(undef, r, r)
-    coef_H1!(H1, α, kn, knm1, M)
+function coef_H1(rn::Integer, rnm1::Integer, n::Integer, α::T, 
+                 t::OffsetVector{T}, M::Integer) where T <: AbstractFloat
+    H1 = Array{T}(undef, rn, rnm1)
+    coef_H1!(H1, α, t, M)
     return H1
 end
 
-function coef_H1!(H1::AbstractMatrix{T}, α::T,
-                  kn::T, knm1::T, M::Integer) where T <: AbstractFloat
+function coef_H1!(H1::AbstractMatrix{T}, n::Integer, α::T, 
+                  t::OffsetVector{T}, M::Integer) where T <: AbstractFloat
     rn = size(H1, 1)
     rnm1 = size(H1, 2)
-    σ1, w1 = GaussQuadrature.legendre(T, M)
-    Ψ = Array{T}(undef, rnm1, M)
-    legendre_polys!(Ψ, σ1)
-    two_D_n_nm1 = kn + knm1 
-    D_n_nm1 = two_D_n_nm1 / 2
+    A = A_integral(rnm1, n, n-1, α, t, M)
+    B1 = B1_integral(rnm1, n, α, M)
+    C1_first, C1_second = C1_integrals(rn, rnm1, n, α, t, M)
+    D = (t[n]+t[n-1])/2 - (t[n-1]+t[n-2])/2
+    knm1 = t[n-1]-t[n-2]
+    c = D^(α-1) * knm1 / ( 2Γ(α) )
     for j = 1:rnm1
-        Aj = zero(T)
-        for m = 1:M
-            Δ = ( kn - σ1[m]*knm1 ) / two_D_n_nm1
-            Aj += w1[m] * ( 1 + Δ )^(α-1) * Ψ[j,m]
-        end
-        for i = 1:rn
-            H1[i,j] = Aj
-        end
-    end
-    σ2, w2 = GaussQuadrature.jacobi(M, α-1, zero(T))
-    legendre_polys!(Ψ, σ2)
-    for j = 1:rnm1
-        Bj = zero(T)
-        for m = 1:M
-            Bj += w2[m] * Ψ[j,m]
-        end
-        Bj *= ( two_D_n_nm1 / knm1 )^(1-α)
         pow = one(T)
         for i = 1:rn
             pow = -pow
-            H1[i,j] += pow * Bj
-        end
-    end
-    σ3, w3 = GaussQuadrature.jacobi(M, zero(T), α)
-    z, wz = GaussQuadrature.legendre(T, M)
-    z .= ( z .+ 1 ) / 2
-    wz .= wz/2
-    dΨ = Array{T}(undef, rn, M)
-    deriv_legendre_polys!(dΨ, σ3)
-    fill!(H1, zero(T))
-    for j = 1:rnm1
-        for i = 1:rn
-            Cij_1 = zero(T)
-            for m3 = 1:M
-                σ_ = σ3[m3]
-                inner = zero(T)
-                for mz = 1:M
-                    z_ = z[mz]
-                    legendre_polys!(view(Ψ, 1:j, 1), 1 - z_*(1+σ_))
-                    inner += wz[mz] * ((kn+z_*knm1)/two_D_n_nm1)^(α-1) * Ψ[j,1]
-                end
-                Cij_1 += w3[m3] * dΨ[i,m3] * inner
-            end
-            H1[i,j] -= Cij_1
-        end
-    end
-    σ4, w4 = GaussQuadrature.jacobi(M, α, zero(T))
-    legendre_polys!(Ψ, σ4)
-    dΨ = Array{T}(undef, rnm1, M)
-    c = D_n_nm1^(α-1) * knm1 / ( 2Γ(α) )
-    for j = 1:rnm1
-        for i = 1:rn
-            Cij_2 = zero(T)
-            for m4 = 1:M
-                σ_ = σ4[m4]
-                inner = zero(T)
-                for mz = 1:M
-                    z_ = z[mz]
-                    deriv_legendre_polys!(view(dΨ, 1:i, 1), z_*(1-σ_)-1)
-                    inner += wz[mz] * ((z_*kn+knm1)/two_D_n_nm1)^(α-1) * dΨ[i,1]
-                end
-                Cij_2 += w4[m4] * Ψ[j,m4] * inner
-            end
-#            println("C2_$i,$j = $Cij_2")
-            H1[i,j] -= Cij_2
-#            H1[i,j] *= c
+            Cij = C1_first[i,j] + C1_second[i,j]
+            H1[i,j] = c * ( A[j] + pow * B[j] - Cij )
         end
     end
 end
@@ -175,79 +149,48 @@ function coef_H1_uniform!(H1::AbstractMatrix{T}, α::T,
                   M::Integer) where T <: AbstractFloat
     r = size(H1, 1)
     @argcheck size(H1, 2) == r
-    σ1, w1 = GaussQuadrature.legendre(T, M)
-    Ψ = Array{T}(undef, r, M)
-    legendre_polys!(Ψ, σ1)                 
+    A = A_integral_uniform(r, 1, α, M)
+    B = B1_integral_uniform(r, α)
+    C1_first, C1_second = C1_integrals_uniform(r, α, M)
+    c = 1 / ( 2Γ(α) )
     for j = 1:r
-        Aj = zero(T)
-        for m = 1:M
-            Δ = ( 1 - σ1[m] ) / 2
-            Aj += w1[m] * ( 1 + Δ )^(α-1) * Ψ[j,m]
-        end
-        for i = 1:r
-            H1[i,j] = Aj
-        end
-    end
-    σ2, w2 = GaussQuadrature.jacobi(M, α-1, zero(T))
-    legendre_polys!(Ψ, σ2)
-    for j = 1:r
-        Bj = zero(T)
-        for m = 1:M
-            Bj += w2[m] * Ψ[j,m]
-        end
-        Bj *= 2^(1-α)
         pow = one(T)
         for i = 1:r
-            pow = -pow
-            H1[i,j] += pow * Bj
-        end
-    end
-    σ3, w3 = GaussQuadrature.jacobi(M, zero(T), α)
-    z, wz = GaussQuadrature.legendre(T, M)
-    z .= ( z .+ 1 ) / 2
-    wz .= wz/2
-    dΨ = Array{T}(undef, r, M)
-    deriv_legendre_polys!(dΨ, σ3)
-    for j = 1:r
-        for i = 1:r
-            Cij_1 = zero(T)
-            for m3 = 1:M
-                σ_ = σ3[m3]
-                inner = zero(T)
-                for mz = 1:M
-                    z_ = z[mz]
-                    legendre_polys!(view(Ψ, 1:j, 1), 1 - z_*(1+σ_))
-                    inner += wz[mz] * (1+z_)^(α-1) * Ψ[j,1]
-                end
-                Cij_1 += w3[m3] * dΨ[i,m3] * inner
-            end
-            Cij_1 *= 2^(1-α)
-            H1[i,j] -= Cij_1
-        end
-    end
-    σ4, w4 = GaussQuadrature.jacobi(M, α, zero(T))
-    legendre_polys!(Ψ, σ4)
-    for j = 1:r
-        for i = 1:r
-            Cij_2 = zero(T)
-            for m4 = 1:M
-                σ_ = σ4[m4]
-                inner = zero(T)
-                for mz = 1:M
-                    z_ = z[mz]
-                    deriv_legendre_polys!(view(dΨ, 1:i, 1), z_*(1-σ_)-1)
-                    inner += wz[mz] * (z_+1)^(α-1) * dΨ[i,1]
-                end
-                Cij_2 += w4[m4] * Ψ[j,m4] * inner
-            end
-            Cij_2 *= 2^(1-α)
-            H1[i,j] -= Cij_2
-            H1[i,j] /= 2Γ(α)
+            pow = - pow
+            Cij = C1_first[i,j] + C1_second[i,j]
+            H1[i,j] = c * ( A[j] + pow * B[j] - Cij )
         end
     end
 end
 
-function coef_H_uniform_1!(Hℓ::AbstractMatrix{T}, ℓ::Integer, α::T, 
+function coef_H_uniform(r::Integer, α::T, t::OffsetVector{T},
+                        M::Integer, version=1) where T <: AbstractFloat
+    N = axes(t, 1).indices.stop
+    H = OffsetVector{Matrix{T}}(undef, 0:N-1)
+    for ℓ = 0:N-1
+        H[ℓ] = Array{T}(undef, r, r)
+    end
+    coef_H0(H[0], α)
+    coef_H1_uniform(H[1], α, M)
+    σ, w = GaussQuadrature.legendre(T, M)
+    Ψ = Array{T}(undef, r, M)
+    legendre_polys!(Ψ, M)
+    if version == 1
+        dΨ = Array{T}(undef, r, M)
+        deriv_legendre_polys!(dΨ, σ)
+        coef_H_uniform_ver1!(H[ℓ], ℓ, α, σ, w, Ψ, dΨ)
+    elseif verson == 2
+        for ℓ = 2:N-1
+            coef_H_uniform_ver2!(H[ℓ], ℓ, α, w, Ψ)
+        end
+    else
+        throw(ArgumentError("version must be 1 or 2"))
+    end
+    return H
+end
+
+# H<ℓ> for ℓ ≥ 2, first version
+function coef_H_uniform_ver1!(Hℓ::Matrix{T}, ℓ::Integer, α::T, 
                            σ::Vector{T}, w::Vector{T}, Ψ::Matrix{T}, 
                            dΨ::Matrix{T}) where T <: AbstractFloat
     r = size(Hℓ, 1)
@@ -277,6 +220,33 @@ function coef_H_uniform_1!(Hℓ::AbstractMatrix{T}, ℓ::Integer, α::T,
             pow = -pow
             Hℓ[i,j] = c * ( Aj + pow * Bj - Cij )
         end
+    end
+end
+
+# H<ℓ> for ℓ ≥ 2, second version
+function coef_H_uniform_ver2!(Hℓ::Matrix{T}, ℓ::Integer, 
+                             α::T, σ::Vector{T}, w::Vector{T},
+                             Ψ::Matrix{T}) where T <: AbstractFloat
+    r = size(Hℓ, 2)
+    A = Vector{T}(undef, r)
+    A_integral_uniform!(A, ℓ, α, Ψ, σ, w)
+    B = Vector{T}(undef, r)
+    B_integral_uniform!(B, ℓ, α, Ψ, σ, w)
+    r = size(Hℓ, 1)
+    τ = σ
+    M = length(w)
+    c = - ((1-α)/(4Γ(α))) * ℓ^(α-2) 
+    for j = 1:r, i = 1:r
+        outer = zero(T)
+        for mτ = 1:M
+            inner = zero(T)
+            for mσ = 1:M
+                Δ = ( τ[mτ] - σ[mσ] ) / ( 2ℓ )
+                inner += w[mσ] * (1+Δ)^(α-2) * Ψ[j,mσ]
+            end
+            outer += w[mτ] * Ψ[i,mτ] * inner
+        end
+        Hℓ[i,j] = c * outer
     end
 end
 
@@ -338,31 +308,6 @@ function coef_H_uniform!(H::Array{T,3}, ℓ_range::UnitRange,
     Ψ = Array{T}(undef, r, M)
     legendre_polys!(Ψ, σ)
     coef_H_uniform!(H, ℓ_range, α, σ, w, Ψ)
-end
-
-function coef_H_uniform!(H::Array{T,3}, ℓ_range::UnitRange, 
-                         α::T, σ::Vector{T}, w::Vector{T},
-                         Ψ::Matrix{T}) where T <: AbstractFloat
-    r = size(H, 1)
-    τ = σ
-    M = length(w)
-    for ℓ in ℓ_range
-        c = - ((1-α)/(4Γ(α))) * ℓ^(α-2) 
-        for j = 1:r
-            for i = 1:r
-                outer = zero(T)
-                for mτ = 1:M
-                    inner = zero(T)
-                    for mσ = 1:M
-                        Δ = ( τ[mτ] - σ[mσ] ) / ( 2ℓ )
-                        inner += w[mσ] * (1+Δ)^(α-2) * Ψ[j,mσ]
-                    end
-                    outer += w[mτ] * Ψ[i,mτ] * inner
-                end
-                H[i,j,ℓ] = c * outer
-            end
-        end
-    end
 end
 
 function gauss_legendre_rules(::Type{T}, M::Integer) where T <: AbstractFloat

@@ -36,7 +36,7 @@ function legendre_polys!(P::AbstractVector{T}, τ::T) where T <: AbstractFloat
     end
 end
 
-function legendre_polys!(P::Matrix{T}, τ::AbstractVector{T}
+function legendre_polys!(P::AbstractMatrix{T}, τ::AbstractVector{T}
                         ) where T <: AbstractFloat
     I = size(P, 1)
     J = size(P, 2)
@@ -86,7 +86,7 @@ function deriv_legendre_polys!(dP::AbstractVector{T}, τ::T
     end
 end
 
-function deriv_legendre_polys!(dP::Matrix{T}, τ::AbstractVector{T}
+function deriv_legendre_polys!(dP::AbstractMatrix{T}, τ::AbstractVector{T}
                                ) where T <: AbstractFloat
     I = size(dP, 1)
     J = size(dP, 2)
