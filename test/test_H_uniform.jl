@@ -2,7 +2,7 @@ import FractionalTimeDG.P, FractionalTimeDG.dP
 
 α = 3/4
 r = 4
-
+store = FractionalTimeDG.setup(α, r, 2r)
 
 function brute_force_H0(r::Integer, α::T, rtol=1e-8) where T <: AbstractFloat
 
@@ -54,28 +54,28 @@ function brute_force_H_uniform(ℓ::Integer, r::Integer, α::T,
     return Hℓ
 end
 
-H0 = coef_H0(r, α)
+H0 = FractionalTimeDG.coef_H0_uniform!(r, store)
 bf_H0 = brute_force_H0(r, α)
 
 err0 = bf_H0 - H0
 @test all( abs.(err0) .< 1e-8 )
 
-H1 = FractionalTimeDG.coef_H1_uniform(r, α, r+2)
+#H1 = FractionalTimeDG.coef_H1_uniform(r, α, r+2)
+H1 = FractionalTimeDG.coef_H1_uniform!(r, r+2, store)
 bf_H1 = brute_force_H_uniform(1, r, α)
-err1 = bf_H1 - H[:,:,1]
 err1 = bf_H1 - H1
 @test all( abs.(err1) .< 1e-8 )
 
-version = 1
-H = coef_H_uniform(5, r, α, r+2, version)
+#version = 1
+#H = coef_H_uniform(5, r, α, r+2, version)
 
-bf_H4 = brute_force_H_uniform(4, r, α)
-err4 = bf_H4 - H[:,:,4]
-@test all( abs.(err4) .< 1e-12 )
+#bf_H4 = brute_force_H_uniform(4, r, α)
+#err4 = bf_H4 - H[:,:,4]
+#@test all( abs.(err4) .< 1e-12 )
 
-alt_H = Array{Float64}(undef, r, r, 4)
-FractionalTimeDG.coef_H_uniform!(alt_H, 3:4, r, α, r+2)
-err3 = alt_H[:,:,3] - H[:,:,3]
-err4 = alt_H[:,:,4] - H[:,:,4]
-@test all( abs.(err3) .< 1e-10 )
-@test all( abs.(err4) .< 1e-12 )
+#alt_H = Array{Float64}(undef, r, r, 4)
+#FractionalTimeDG.coef_H_uniform!(alt_H, 3:4, r, α, r+2)
+#err3 = alt_H[:,:,3] - H[:,:,3]
+#err4 = alt_H[:,:,4] - H[:,:,4]
+#@test all( abs.(err3) .< 1e-10 )
+#@test all( abs.(err4) .< 1e-12 )
