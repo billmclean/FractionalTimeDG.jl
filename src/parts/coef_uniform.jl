@@ -5,6 +5,7 @@ function coef_H_uniform!(r::Integer, N::Integer, M::Integer,
         H[ℓbar] = Array{T}(undef, r, r)
     end
     coef_H_uniform!(H, M, store)
+    return H
 end
 
 function coef_H_uniform!(H::OffsetVector{Matrix{T}}, M::Integer,

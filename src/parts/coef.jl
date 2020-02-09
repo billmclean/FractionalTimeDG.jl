@@ -28,23 +28,25 @@ function coef_Hn!(r::Integer, n::Integer, ℓbar_hi::Integer, t::OffsetVector{T}
     for ℓbar = 0:ℓbar_hi
         Hn[ℓbar] = Array{T}(undef, r, r)
     end
-    coef_H!(Hn, α, t, M)
+    coef_Hn!(Hn, n, ℓbar_hi, t, M, store)
+    return Hn
 end
 
 function coef_Hn!(Hn::OffsetVector{Matrix{T}}, n::Integer, ℓbar_hi::Integer,
                  t::OffsetVector{T}, M::Integer,
                  store::Store{T}) where T <: AbstractFloat
-    N = axes(Hn, 1).indices.stop + 1
+    N = axes(t, 1).indices.stop + 1
     @argcheck 1 ≤ n ≤ N
     @argcheck 0 ≤ ℓbar_hi ≤ n-1
-    @argcheck axes(t, 1).indices.stop == N
+    @argcheck axes(Hn, 1).indices.stop ≥ ℓbar_hi
     rn = size(Hn[0], 1)
     @argcheck size(Hn[0], 2) == rn
     @argcheck rn ≤ store.rmax
-    coef_H0!_uniform(Hn[0], store)
+    coef_H0_uniform!(Hn[0], store)
     kn = t[n] - t[n-1]
+    α = store.α
     for j = 1:rn, i = 1:rn
-        H[0][i,j] *= kn^α 
+        Hn[0][i,j] *= kn^α 
     end
     if ℓbar_hi ≥ 1
         coef_Hn1!(Hn[1], n, t, M, store)

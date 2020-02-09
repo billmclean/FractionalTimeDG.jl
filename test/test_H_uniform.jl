@@ -25,57 +25,49 @@ function brute_force_H0(r::Integer, α::T, rtol=1e-8) where T <: AbstractFloat
     return H0
 end
 
-function brute_force_H_uniform(ℓ::Integer, r::Integer, α::T, 
+function brute_force_H_uniform(ℓbar::Integer, r::Integer, α::T, 
                        rtol=1e-8) where T <: AbstractFloat
 
-    function inner_integral(ℓ::Integer, j::Integer, τ::T
+    function inner_integral(ℓbar::Integer, j::Integer, τ::T
                            ) where T <: AbstractFloat
         I, err = quadgk(-one(T), one(T), rtol=rtol) do σ
-            Δ = (τ-σ) / ( 2ℓ )
+            Δ = (τ-σ) / ( 2ℓbar )
             return (1+Δ)^(α-1) * P(j-1, σ) 
         end
         return I
     end
 
-    Hℓ = Array{T}(undef, r, r)
-    c = ℓ^(α-1) / ( 2Γ(α) )
+    Hℓbar = Array{T}(undef, r, r)
+    c = ℓbar^(α-1) / ( 2Γ(α) )
     for j = 1:r
-        Aj = inner_integral(ℓ, j, one(T))
-        Bj = inner_integral(ℓ, j, -one(T))
+        Aj = inner_integral(ℓbar, j, one(T))
+        Bj = inner_integral(ℓbar, j, -one(T))
         pow = one(T)
         for i = 1:r
             Cij, err = quadgk(-one(T), one(T), rtol=rtol) do τ
-                dP(i-1,τ) * inner_integral(ℓ, j, τ)
+                dP(i-1,τ) * inner_integral(ℓbar, j, τ)
             end
             pow = -pow
-            Hℓ[i,j] = c * ( Aj + pow * Bj - Cij )
+            Hℓbar[i,j] = c * ( Aj + pow * Bj - Cij )
         end
     end
-    return Hℓ
+    return Hℓbar
 end
 
-H0 = FractionalTimeDG.coef_H0_uniform!(r, store)
+N = 4
+
+H = coef_H_uniform!(r, N, r+2, store)
+
 bf_H0 = brute_force_H0(r, α)
 
-err0 = bf_H0 - H0
+err0 = bf_H0 - H[0]
 @test all( abs.(err0) .< 1e-8 )
 
-#H1 = FractionalTimeDG.coef_H1_uniform(r, α, r+2)
-H1 = FractionalTimeDG.coef_H1_uniform!(r, r+2, store)
-bf_H1 = brute_force_H_uniform(1, r, α)
-err1 = bf_H1 - H1
-@test all( abs.(err1) .< 1e-8 )
+bf_H2 = brute_force_H_uniform(2, r, α)
+err2 = bf_H2- H[2]
+@test all( abs.(err2) .< 1e-8 )
 
-#version = 1
-#H = coef_H_uniform(5, r, α, r+2, version)
+bf_H3 = brute_force_H_uniform(3, r, α)
+err3 = bf_H3- H[3]
+@test all( abs.(err3) .< 1e-8 )
 
-#bf_H4 = brute_force_H_uniform(4, r, α)
-#err4 = bf_H4 - H[:,:,4]
-#@test all( abs.(err4) .< 1e-12 )
-
-#alt_H = Array{Float64}(undef, r, r, 4)
-#FractionalTimeDG.coef_H_uniform!(alt_H, 3:4, r, α, r+2)
-#err3 = alt_H[:,:,3] - H[:,:,3]
-#err4 = alt_H[:,:,4] - H[:,:,4]
-#@test all( abs.(err3) .< 1e-10 )
-#@test all( abs.(err4) .< 1e-12 )
