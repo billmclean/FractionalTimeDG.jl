@@ -4,15 +4,6 @@ import FractionalTimeDG.P, FractionalTimeDG.dP
 r = 4
 store = FractionalTimeDG.setup(α, r, 2r)
 
-function Δ(n::Integer, ℓbar::Integer, τ::T, σ::T, 
-           t::OffsetArray{T}) where T <: AbstractFloat
-    ℓ = n - ℓbar
-    kn = t[n] - t[n-1]
-    kℓ = t[ℓ] - t[ℓ-1]
-    two_D = (t[n]+t[n-1]) - (t[ℓ]+t[ℓ-1])
-    return ( τ * kn - σ * kℓ ) / two_D
-end
-
 function brute_force_Hn(r::Integer, n::Integer, ℓbar::Integer, α::T,
                         t::OffsetVector{T},
                         rtol=1e-8) where T <: AbstractFloat

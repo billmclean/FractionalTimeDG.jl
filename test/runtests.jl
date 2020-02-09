@@ -6,6 +6,8 @@ using QuadGK: quadgk
 
 Γ = SpecialFunctions.gamma
 
+include("common.jl")
+
 @testset "FractionalTimeDG.jl" begin
     include("test_coef_G_K.jl")
     include("test_legendre.jl")

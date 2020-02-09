@@ -10,7 +10,7 @@ end
 
 function coef_H_uniform!(H::OffsetVector{Matrix{T}}, M::Integer,
                          store::Store{T}) where T <: AbstractFloat
-    N = axes(H, 1).indices.stop + 1
+    N = length(H) 
     coef_H0_uniform!(H[0], store)
     if N ≥ 2
         coef_H1_uniform!(H[1], M, store)

@@ -24,7 +24,7 @@ coef_K(rn, rnm1) = coef_K(Float64, rn, rnm1)
 
 function coef_Hn!(r::Integer, n::Integer, ℓbar_hi::Integer, t::OffsetVector{T}, 
                  M::Integer, store::Store{T}) where T <: AbstractFloat
-    Hn = OffsetVector{Matrix{T}}(undef, 0:ℓbar_hi-1)
+    Hn = OffsetVector{Matrix{T}}(undef, 0:ℓbar_hi)
     for ℓbar = 0:ℓbar_hi
         Hn[ℓbar] = Array{T}(undef, r, r)
     end
@@ -35,10 +35,10 @@ end
 function coef_Hn!(Hn::OffsetVector{Matrix{T}}, n::Integer, ℓbar_hi::Integer,
                  t::OffsetVector{T}, M::Integer,
                  store::Store{T}) where T <: AbstractFloat
-    N = axes(t, 1).indices.stop + 1
+    N = length(t) - 1
     @argcheck 1 ≤ n ≤ N
     @argcheck 0 ≤ ℓbar_hi ≤ n-1
-    @argcheck axes(Hn, 1).indices.stop ≥ ℓbar_hi
+    @argcheck length(Hn) ≥ ℓbar_hi + 1
     rn = size(Hn[0], 1)
     @argcheck size(Hn[0], 2) == rn
     @argcheck rn ≤ store.rmax
