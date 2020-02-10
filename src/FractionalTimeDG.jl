@@ -5,7 +5,7 @@ using OffsetArrays
 import GaussQuadrature
 import SpecialFunctions
 
-export setup, coef_G, coef_K, coef_H0, coef_H1
+export Store, coef_G, coef_K, coef_H0, coef_H1
 export coef_H_uniform!, coef_Hn!
 
 Γ(x) = SpecialFunctions.gamma(x)

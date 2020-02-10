@@ -1,4 +1,4 @@
-function setup(α::T, rmax::Integer, Mmax::Integer
+function Store(α::T, rmax::Integer, Mmax::Integer
               ) where T <: AbstractFloat
     if Mmax < rmax
         throw(ArgumentError("Mmax must be at least as big as rmax"))

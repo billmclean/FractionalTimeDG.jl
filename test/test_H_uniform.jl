@@ -2,7 +2,7 @@ import FractionalTimeDG.P, FractionalTimeDG.dP
 
 α = 3/4
 r = 4
-store = FractionalTimeDG.setup(α, r, 2r)
+store = FractionalTimeDG.Store(α, r, 2r)
 
 function brute_force_H0(r::Integer, α::T, rtol=1e-8) where T <: AbstractFloat
 
