@@ -1,19 +1,22 @@
-using FractionalTimeDG
+import FractionalTimeDG
 using Printf
+using ArgCheck
 
 sample = [1, 2, 10, 100, 1000]
-rmax = 6
 α = 3/4
-M = 2rmax
+rmax = 6
+Mmax = 2rmax
+store = FractionalTimeDG.Store(α, rmax, Mmax)
+version = 1
 
 function coef_uniform(sample, r, α, M, version)
     Ns = length(sample) 
-    H_sample = Array{Float64}(undef, r, r, Ns, M)
+    H_sample = Matrix{Matrix{Float64}}(undef, Ns, M)
     N = maximum(sample) + 1
     for m = 1:M
-        H = coef_H_uniform(N, r, α, m, version)
+        H = FractionalTimeDG.coef_H_uniform!(r, N, m, store, version)
         for n = 1:Ns
-            H_sample[:, :, n, m] = H[:,:,sample[n]]
+            H_sample[n, m] = H[sample[n]][:,:]
         end
     end
     return H_sample
@@ -36,25 +39,25 @@ function latex_display(A::Matrix{Float64})
     end
 end
 
-H0 = coef_H0(rmax, α)
+H0 = FractionalTimeDG.coef_H0_uniform!(rmax, store)
 println("H_0:")
 latex_display(H0)
-Hs = coef_uniform(sample, rmax, α, M, version)
+Hs = coef_uniform(sample, rmax, α, Mmax, version)
 for n = 1:length(sample)
     ℓ = sample[n]
     println("H_$ℓ:")
-    latex_display(Hs[:,:,n,M])
+    latex_display(Hs[n,Mmax])
 end
 
-function pts_needed(sample, rmax, α, M, version, atol)
-    Ns = length(sample)
+function pts_needed(Hs, sample, rmax, α, atol)
+    Ns, M = size(Hs)
+    @argcheck length(sample) == Ns
     first_M = fill(-1, rmax, Ns)
     err = zeros(rmax, M)
     for n = 1:Ns
         ℓ = sample[n]
-        H = coef_uniform(sample, rmax, α, M, version)
         for m = 1:M-1
-            ΔH = H[:,:,n,m] - H[:,:,n,M]
+            ΔH = Hs[n,m] - Hs[n,M]
             for r = 1:rmax
                 err[r,m] = maximum(abs.(ΔH[1:r,1:r]))
             end
@@ -72,9 +75,8 @@ function pts_needed(sample, rmax, α, M, version, atol)
 end
 
 atol = 1e-14
-version = 2
 println("\nQuadrature points needed using version = ", version)
-first_M = pts_needed(sample, rmax, α, M, version, atol)
+first_M = pts_needed(Hs, sample, rmax, α, atol)
 @printf("%4s", "r")
 for ℓ in sample
     @printf("  ℓ=%4d", ℓ)

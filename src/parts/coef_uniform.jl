@@ -1,22 +1,28 @@
 function coef_H_uniform!(r::Integer, N::Integer, M::Integer,
-                         store::Store{T}) where T <: AbstractFloat
+                         store::Store{T}, version=2) where T <: AbstractFloat
     H = OffsetVector{Matrix{T}}(undef, 0:N-1)
     for ℓbar = 0:N-1
         H[ℓbar] = Array{T}(undef, r, r)
     end
-    coef_H_uniform!(H, M, store)
+    coef_H_uniform!(H, M, store, version)
     return H
 end
 
 function coef_H_uniform!(H::OffsetVector{Matrix{T}}, M::Integer,
-                         store::Store{T}) where T <: AbstractFloat
+                         store::Store{T}, version=2) where T <: AbstractFloat
     N = length(H) 
     coef_H0_uniform!(H[0], store)
     if N ≥ 2
         coef_H1_uniform!(H[1], M, store)
     end
     if N ≥ 3
-        coef_H_uniform_ver1!(H, 2:N-1, M, store)
+        if version == 1
+            coef_H_uniform_ver1!(H, 2:N-1, M, store)
+        elseif version == 2
+            coef_H_uniform_ver2!(H, 2:N-1, M, store)
+        else
+            throw(ArgumentError("version must be 1 or 2"))
+        end
     end
 end
 
@@ -194,7 +200,14 @@ function coef_H_uniform_ver1!(H::OffsetVector{Matrix{T}}, rng::UnitRange,
     c = 1 / ( 2Γ(α) )
     for ℓbar in rng
 
-        A_integral_uniform!(A, ℓbar, α, σ, wσ, Ψ)
+        for j = 1:r
+            s = zero(T)
+            for m = 1:M
+                Δ = ( 1 - σ[m] ) / (2ℓbar)
+                s += wσ[m] * ( 1 + Δ )^(α-1) * Ψ[j,m]
+            end
+            A[j] = s
+        end
 
         for j = 1:r
             s = zero(T)
@@ -234,7 +247,7 @@ function coef_H_uniform_ver2!(H::OffsetVector{Matrix{T}}, rng::UnitRange,
                               M::Integer, store::Store{T}
                              ) where T <: AbstractFloat
     @argcheck rng.start ≥ 2
-    r = size(H[rng.star], 1)
+    r = size(H[rng.start], 1)
     σ, wσ = rule(store.legendre[M])
     τ, wτ = σ, wσ
     Ψ  = view(store.Ψ, 1:r, 1:M)
@@ -250,26 +263,9 @@ function coef_H_uniform_ver2!(H::OffsetVector{Matrix{T}}, rng::UnitRange,
                     Δ = ( τ[mτ] - σ[mσ] ) / ( 2ℓbar )
                     inner += wσ[mσ] * (1+Δ)^(α-2) * Ψ[j,mσ]
                 end
-                outer += wτ[mτ] * Ψ[i,mτ] * innfer
+                outer += wτ[mτ] * Ψ[i,mτ] * inner
             end
             H[ℓbar][i,j] = c * ℓbar^(α-2) * outer
         end
     end
 end
-
-function A_integral_uniform!(A::AbstractVector{T}, ℓbar::Integer, α::T, 
-                             σ::Vector{T}, w::Vector{T}, 
-                             Ψ::AbstractMatrix{T}
-                             ) where T <: AbstractFloat
-    r = length(A)
-    M = length(σ)
-    for j = 1:r
-        s = zero(T)
-        for m = 1:M
-            Δ = ( 1 - σ[m] ) / (2ℓbar)
-            s += w[m] * ( 1 + Δ )^(α-1) * Ψ[j,m]
-        end
-        A[j] = s
-    end
-end
-
