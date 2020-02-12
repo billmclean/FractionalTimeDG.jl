@@ -7,27 +7,28 @@ r = 4
 M = 2r
 version = 1
 
-H = coef_H_uniform(N, r, α, M, version)
+store = Store(α, r, M)
+H = coef_H_uniform!(r, N, M, store, version)
 
 ℓ = collect(1:N-1)
 
 function max_antidiags(H)
-    r = size(H, 1)
-    N = size(H, 3) + 1
+    r = size(H[0], 1)
+    N = length(H)
     γ = zeros(N-1, 2r-1)
     for m = 2:2r
-        for ℓ = 1:N-1
+        for ℓbar = 1:N-1
             if m ≤ r
-                antidiag = [ H[i,m-i,ℓ] for i = 1:m-1 ]
+                antidiag = [ H[ℓbar][i,m-i] for i = 1:m-1 ]
             else
-                antidiag = [ H[i,m-i,ℓ] for i = m-r:r ]
+                antidiag = [ H[ℓbar][i,m-i] for i = m-r:r ]
             end
 #            println(antidiag)
             largest = maximum(abs.(antidiag))
             if largest ≥ eps(Float64)
-                γ[ℓ, m-1] = largest
+                γ[ℓbar, m-1] = largest
             else
-                γ[ℓ, m-1] = NaN
+                γ[ℓbar, m-1] = NaN
             end
         end
     end
