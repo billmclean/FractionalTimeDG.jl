@@ -8,13 +8,14 @@ import LinearAlgebra
 
 export Store, coef_G, coef_K, coef_H0, coef_H1
 export coef_H_uniform!, coef_Hn!
-export FODEdG!
+export FODEdG!, evaluate_pcwise_poly!, reconstruction
 
 Γ(x) = SpecialFunctions.gamma(x)
 
 struct Store{T<: AbstractFloat}
     # shared data for low-level routines
     # initialise with store = setup(α, rmax, Mmax)
+    # or setup(α, rmax, Mmax, ppImax)
     α::T          # fraction diffusion exponent
     rmax::Integer # (max degree of piecewise polynomials) + 1
     Mmax::Integer # maximum number of Gauss points
@@ -25,6 +26,7 @@ struct Store{T<: AbstractFloat}
     jacobi3::Vector{Matrix{T}}      # w(x) = (1-x)^α
     jacobi4::Vector{Matrix{T}}      # w(x) = (1+x)^α
     jacobi5::Vector{Matrix{T}}      # w(x) = (1-x)(1+x)^(α-1)
+    ppImax::Integer # max points per interval (second dimension of Ψ)
     Ψ::Matrix{T}
     dΨ::Matrix{T}
     A::Vector{T}

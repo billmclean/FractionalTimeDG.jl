@@ -38,7 +38,7 @@ function coef_H0_uniform!(H0::Matrix{T},
     r = size(H0, 1)
     α = store.α
     @argcheck r ≤ store.rmax
-    @argcheck size(H0, 2) == store.rmax
+    @argcheck size(H0, 2) == r
     y, wy = rules(store.jacobi5)
     z, wz = rules(store.legendre)
     Φ  = view(store.C, 1:2r)

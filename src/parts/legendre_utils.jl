@@ -106,3 +106,137 @@ function deriv_legendre_polys!(dP::AbstractMatrix{T}, τ::AbstractVector{T}
     end
 end
 
+"""
+    pcwise_t, pcwise_U = evaluate_pcwise_poly(U, t, store)
+"""
+function evaluate_pcwise_poly!(U::Vector{Vector{T}}, t::OffsetVector{T},
+                               ppI::Integer, store::Store{T}
+                              ) where { T <: AbstractFloat }
+    τ = range(-one(T), stop=one(T), length=ppI) 
+    pcwise_t, pcwise_U = evaluate_pcwise_poly!(U, t, τ, store) 
+    return pcwise_t, pcwise_U
+end
+
+function evaluate_pcwise_poly!(U::Vector{Vector{T}}, t::OffsetVector{T},
+                               τ::AbstractVector{T}, store::Store{T}
+                              ) where T <: AbstractFloat 
+    N = length(U)
+    ppI = length(τ)
+    @argcheck ppI ≤ store.ppImax
+    pcwise_t = Array{T}(undef, ppI, N)
+    pcwise_U = similar(pcwise_t) 
+    evaluate_pcwise_poly!(pcwise_t, pcwise_U, U, t, τ, store) 
+    return pcwise_t, pcwise_U
+end
+
+function evaluate_pcwise_poly!(pcwise_t::Matrix{T}, pcwise_U::Matrix{T},
+                               U::Vector{Vector{T}}, t::OffsetVector{T},
+                               τ::AbstractVector{T}, store::Store{T}
+                              ) where { T <: AbstractFloat }
+    N = length(U)
+    ppI = length(τ)
+    @argcheck size(pcwise_t) == (ppI, N)
+    @argcheck size(pcwise_U) == (ppI, N)
+    @argcheck length(t) == N+1
+    rmax = store.rmax
+    pts_per_interval = length(τ)
+    Ψ = view(store.Ψ, 1:rmax, 1:pts_per_interval)
+    legendre_polys!(Ψ, τ)
+    for n = 1:N
+        rn = length(U[n])
+        for m = 1:pts_per_interval
+            pcwise_t[m,n] = ( (1-τ[m])*t[n-1] + (1+τ[m])*t[n] ) / 2
+            s = zero(T)
+            for j = 1:rn
+                s += U[n][j] * Ψ[j,m]
+            end
+            pcwise_U[m,n] = s
+        end
+    end
+end
+
+function Fourier_Legendre_coefs(u::Function, r::Integer, t::OffsetArray{T},
+                                store::Store{T}) where T <: AbstractFloat
+    N = length(t) - 1
+    rmax = store.rmax
+    a = Vector{Vector{T}}(undef, N)
+    M = store.Mmax
+    τ, wτ = rule(store.legendre[M])
+    Ψ = view(store.Ψ, 1:r, 1:M)
+    legendre_polys!(Ψ, τ)
+    for n = 1:N
+        a[n] = Vector{T}(undef, r)
+        for j = 1:r
+            s = zero(T)
+            for m = 1:M
+                tnm = ( (1-τ[m])*t[n-1] + (1+τ[m])*t[n] ) / 2
+                s += wτ[m] * u(tnm) * Ψ[j,m]
+            end
+            a[n][j] = (2j-1) * s / 2
+        end
+    end
+    return a
+end
+
+function reconstruction_pts(In::Tuple{T,T}, r::Integer) where T <: AbstractFloat
+    tnm1, tn = In
+    tstar = reconstruction_pts(T, r)
+    tstar[0] = tnm1
+    for m = 1:r-1
+        tstar[m] = ( ( 1 - tstar[m] ) * tnm1 + ( tstar[m] + 1 ) * tn ) / 2
+    end
+    tstar[r] = tn
+    return tstar
+end
+
+function reconstruction_pts(::Type{T}, r::Integer) where T <: AbstractFloat
+    right = GaussQuadrature.right
+    τ, wτ = GaussQuadrature.legendre(T, r, right)
+    return OffsetArray([ -one(0); τ ], 0:r)
+end
+
+"""
+    Uhat = reconstruction(U, u0, store)
+"""
+function reconstruction(U::Vector{Vector{T}}, u0::T, 
+                        store::Store{T}) where T <: AbstractFloat
+    N = length(U)
+    rmax = store.rmax
+    Uhat = Vector{Vector{T}}(undef, N)
+    pow = OffsetArray{T}(undef, 0:rmax)
+    pow[0] = one(T)
+    for n = 1:rmax
+        pow[n] = -pow[n-1]
+    end
+    r1 = length(U[1])
+    @argcheck r1+1 ≤ rmax
+    U_left = zero(T)   # U_left  = U(t[0] + 0) = value at the left endpoint.
+    U_right = zero(T)  # U_right = U(t[1] - 0) = value at the right endpoint.
+    for j = 1:r1
+        U_left += pow[j-1] * U[1][j]
+        U_right += U[1][j]
+    end
+    jumpU0 = U_left - u0
+    Uhat[1] = Vector{T}(undef, r1+1)
+    Uhat[1][1:r1] .= U[1][1:r1]
+    Uhat[1][r1] += pow[r1] * jumpU0 / 2
+    Uhat[1][r1+1] = - pow[r1] * jumpU0 / 2
+    for n = 2:N
+        rn = length(U[n])
+        @argcheck rn + 1 ≤ rmax
+        U_left = zero(T) # U_left = U(t[n-1] + 0 )
+        for j = 1:rn
+            U_left += pow[j-1] * U[n][j]
+        end
+        jumpUnm1 = U_left - U_right
+        Uhat[n] = Vector{T}(undef, rn+1)
+        Uhat[n][1:rn] .= U[n][1:rn]
+        Uhat[n][rn] += pow[rn] * jumpUnm1 / 2
+        Uhat[n][rn+1]  = -pow[rn] * jumpUnm1 / 2
+        U_right = zero(T) # U_right = U(t[n] - 0 )
+        for j = 1:rn
+            U_right += U[n][j]
+        end
+    end
+    return Uhat
+end

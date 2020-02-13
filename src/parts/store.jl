@@ -1,7 +1,12 @@
-function Store(α::T, rmax::Integer, Mmax::Integer
+Store(α, rmax, Mmax) = Store(α, rmax, Mmax, Mmax)
+
+function Store(α::T, rmax::Integer, Mmax::Integer, ppImax::Integer
               ) where T <: AbstractFloat
     if Mmax < rmax
         throw(ArgumentError("Mmax must be at least as big as rmax"))
+    end
+    if Mmax > ppImax
+        throw(ArgumentError("ppImax must be at least as big as Mmax"))
     end
     unitlegendre = Vector{Matrix{T}}(undef, Mmax)
     legendre = Vector{Matrix{T}}(undef, Mmax)
@@ -31,14 +36,14 @@ function Store(α::T, rmax::Integer, Mmax::Integer
         jacobi5[M][:,1], jacobi5[M][:,2] = GaussQuadrature.jacobi(M, one(T), 
                                                                   α-1)
     end
-    Ψ  = Array{T}(undef, rmax, Mmax)
+    Ψ  = Array{T}(undef, rmax, ppImax)
     dΨ = Array{T}(undef, rmax, Mmax)
     A = Vector{T}(undef, rmax)
     B = Vector{T}(undef, rmax)
     C = Array{T}(undef, rmax, rmax)
     return Store(α, rmax, Mmax, unitlegendre, legendre, 
                  jacobi1, jacobi2, jacobi3, jacobi4, jacobi5,
-                 Ψ, dΨ, A, B, C)
+                 ppImax, Ψ, dΨ, A, B, C)
 end
 
 function rule(storerule::Matrix{T}) where T <: AbstractFloat
