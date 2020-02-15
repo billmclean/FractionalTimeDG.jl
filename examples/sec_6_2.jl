@@ -1,6 +1,7 @@
 using FractionalTimeDG
 import FractionalTimeDG
 using SpecialFunctions: erfcx
+import GaussQuadrature
 
 T = Float64
 two = parse(T, "2")
