@@ -124,7 +124,7 @@ function coef_H1_uniform!(H1::Matrix{T}, M::Integer,
         B[j] = 2^(1-α) * s
     end
 
-    Mτ = ceil(Integer, r-1)
+    Mτ = max(1, ceil(Integer, r-1))
     Mσ = Mτ
     Mz = M
     z, wz = rule(store.unitlegendre[Mz])
