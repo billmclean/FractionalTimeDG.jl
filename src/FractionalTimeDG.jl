@@ -39,5 +39,6 @@ include("parts/legendre_utils.jl")
 include("parts/coef_uniform.jl")
 include("parts/coef.jl")
 include("parts/scalar_fode.jl")
+include("parts/mittag-leffler.jl")
 
 end # module FractionalTimeDG

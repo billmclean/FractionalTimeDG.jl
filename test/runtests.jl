@@ -14,4 +14,5 @@ include("common.jl")
     include("test_ABC.jl")
     include("test_H_uniform.jl")
     include("test_H.jl")
+    include("test_chebyshev.jl")
 end
