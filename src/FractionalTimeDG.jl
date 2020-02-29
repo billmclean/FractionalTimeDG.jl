@@ -5,6 +5,7 @@ using OffsetArrays
 import GaussQuadrature
 import SpecialFunctions
 import LinearAlgebra
+import SparseArrays
 
 export Store, coef_G, coef_K, coef_H0, coef_H1
 export coef_H_uniform!, coef_Hn!
@@ -40,5 +41,6 @@ include("parts/coef_uniform.jl")
 include("parts/coef.jl")
 include("parts/scalar_fode.jl")
 include("parts/mittag-leffler.jl")
+include("parts/fem1d.jl")
 
 end # module FractionalTimeDG
