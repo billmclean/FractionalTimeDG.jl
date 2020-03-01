@@ -16,12 +16,18 @@ x = OffsetVector(range(0, L, length=Nx+1), 0:Nx)
 grid = FractionalTimeDG.SpatialGrid(x, rx, ("essential", "essential"), rx)
 
 U0 = FractionalTimeDG.spatial_L2_projection(u0, grid)
-t, U = FractionalTimeDG.FPDEDG(1.0, α, f, U0, grid, max_t, Nt, rt, Mt, store)
+t, U = FractionalTimeDG.FPDEDG(1.0, f, U0, grid, max_t, Nt, rt, Mt, store)
 
-pts_per_time_interval = 5
-pts_per_space_interval = 5
+#pts_per_time_interval = 5
+#pts_per_space_interval = 5
+#xvals, pcwise_t, pcwise_U = FractionalTimeDG.evaluate_pcwise_poly(
+#    U, t, grid, pts_per_time_interval, pts_per_space_interval)
+τ = [ -1.0, -0.5, 0.0, 0.5, 1.0 ]
+pts_per_time_interval = length(τ)
+ξ = [ -0.9, -0.5, 0.0, 0.5, 0.9 ]
 xvals, pcwise_t, pcwise_U = FractionalTimeDG.evaluate_pcwise_poly(
-    U, t, grid, pts_per_time_interval, pts_per_space_interval)
+    U, t, grid, τ, ξ)
+τ = [ -1.0, -0.5, 0.0, 0.5, 1.0 ]
 
 figure(1)
 Nxvals = length(xvals)

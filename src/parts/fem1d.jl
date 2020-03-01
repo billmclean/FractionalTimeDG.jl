@@ -269,18 +269,28 @@ function spatial_points!(xvals::Vector{T}, grid::SpatialGrid{T},
     Nx = length(xvals)
     P = length(x) - 1
     pts_per_interval = length(ξ)
-    @argcheck Nx == 1 + P * ( pts_per_interval - 1 )
     n = 0
-    for p = 1:P
-        rp = length(gdof[p])
-        for j = 1:pts_per_interval - 1
-            xpj = ( ( 1 - ξ[j] ) * x[p-1] + (1 + ξ[j] ) * x[p] ) / 2
-            n += 1
-            xvals[n] = xpj
+    if Nx == 1 + P * ( pts_per_interval - 1 )
+        for p = 1:P
+            for j = 1:pts_per_interval - 1
+                xpj = ( ( 1 - ξ[j] ) * x[p-1] + (1 + ξ[j] ) * x[p] ) / 2
+                n += 1
+                xvals[n] = xpj
+            end
         end
+        n += 1
+        xvals[n] = x[P]
+    elseif Nx == P * pts_per_interval
+        for p = 1:P
+            for j = 1:pts_per_interval 
+                xpj = ( ( 1 - ξ[j] ) * x[p-1] + (1 + ξ[j] ) * x[p] ) / 2
+                n += 1
+                xvals[n] = xpj
+            end
+        end
+    else
+        throw(ArgumentError("xvals length does not match grid"))
     end
-    n += 1
-    xvals[n] = x[P]
 end
 
 function evaluate_fem1d_soln!(Uvals::Vector{T}, U::Vector{T}, 
@@ -289,30 +299,47 @@ function evaluate_fem1d_soln!(Uvals::Vector{T}, U::Vector{T},
                              ) where { T <: AbstractFloat }
     x, gdof = grid.x, grid.global_DoF
     nfree, nfixed, max_r = grid.nfree, grid.nfixed, grid.max_r
+    @argcheck length(U) == nfree DimensionMismatch
     Nx = length(Uvals)
     P = length(x) - 1
     pts_per_interval = length(ξ)
-    @argcheck Nx == 1 + P * ( pts_per_interval - 1 )
-    @argcheck length(U) == nfree DimensionMismatch
     Φ = shape_funcs(max_r, ξ)
     n = 0
-    for p = 1:P
-        rp = length(gdof[p])
-        for j = 1:pts_per_interval-1
-            n += 1
-            Uvals[n] = zero(T)
-            for i = 1:rp
-                gpi = gdof[p][i]
-                if gpi ≤ nfree
-                    Uvals[n] += U[gpi] * Φ[i,j]
+    if Nx == 1 + P * ( pts_per_interval - 1 ) # ξ[1] = -1, ξ[end] = +1
+        for p = 1:P
+            rp = length(gdof[p])
+            for j = 1:pts_per_interval-1
+                n += 1
+                Uvals[n] = zero(T)
+                for i = 1:rp
+                    gpi = gdof[p][i]
+                    if gpi ≤ nfree
+                        Uvals[n] += U[gpi] * Φ[i,j]
+                    end
                 end
             end
         end
-    end
-    n += 1
-    gpi = gdof[P][2]
-    if gpi ≤ nfree
-         Uvals[n] = U[gpi] 
+        n += 1
+        gpi = gdof[P][2]
+        if gpi ≤ nfree
+            Uvals[n] = U[gpi] 
+        end
+    elseif Nx == P * pts_per_interval  # ξ[1] > -1 or ξ[end] < +1
+        for p = 1:P
+            rp = length(gdof[p])
+            for j = 1:pts_per_interval
+                n += 1
+                Uvals[n] = zero(T)
+                for i = 1:rp
+                    gpi = gdof[p][i]
+                    if gpi ≤ nfree
+                        Uvals[n] += U[gpi] * Φ[i,j]
+                    end
+                end
+            end
+        end
+    else
+        throw(ArgumentError("Uvals length does not match grid"))
     end
 end
 
@@ -354,7 +381,11 @@ function evaluate_pcwise_poly(U::Array{T}, t::OffsetVector{T},
     pts_per_space_interval = length(ξ)
     pts_per_time_interval = length(τ)
     @argcheck axes(t, 1) == 0:N
-    Nx = 1 + P * ( pts_per_space_interval - 1 )
+    if ξ[1] > -1.0 || ξ[end] < 1.0
+        Nx = P * pts_per_space_interval
+    else
+        Nx = 1 + P * ( pts_per_space_interval - 1 )
+    end
     xvals = zeros(T, Nx)
     spatial_points!(xvals, grid, ξ)
     Ψ = Array{Float64}(undef, rt, pts_per_time_interval)
@@ -539,13 +570,14 @@ function maxerr(τ:: AbstractVector{Float64}, U::Array{Float64},
 end
 
 """
-    U = FPDEDG(κ, α, f, U0, grid, t, rt, num_t_Gauss_pts)
+    U = FPDEDG(κ, f, U0, grid, t, rt, num_t_Gauss_pts)
 
 DG solver for fractional PDE.
 """
-function FPDEDG(κ::Float64, α::Float64, f::Function, U0::Vector{Float64}, 
+function FPDEDG(κ::Float64, f::Function, U0::Vector{Float64}, 
                grid::SpatialGrid{Float64}, t::OffsetVector{Float64},
                rt::Int64, Mt::Int64)
+    α = store.α
     x, gdof = grid.x, grid.global_DoF
     nfree, nfixed = grid.nfree, grid.nfixed
 
@@ -588,13 +620,14 @@ function FPDEDG(κ::Float64, α::Float64, f::Function, U0::Vector{Float64},
 end
 
 """
-    t, U = FPDEDG(κ, α, f, U0, grid, max_t, N, rt, num_t_Gauss_pts)
+    t, U = FPDEDG(κ, f, U0, grid, max_t, N, rt, num_t_Gauss_pts)
 
 Specialised version for uniform time steps.
 """
-function FPDEDG(κ::Float64, α::Float64, f::Function, U0::Vector{Float64}, 
+function FPDEDG(κ::Float64, f::Function, U0::Vector{Float64}, 
                 grid::SpatialGrid{Float64}, max_t::Float64, 
                 N::Int64, rt::Int64, Mt::Int64, store::Store{Float64})
+    α = store.α
     x, gdof = grid.x, grid.global_DoF
     nfree, nfixed = grid.nfree, grid.nfixed
 
