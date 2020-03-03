@@ -67,7 +67,7 @@ function FODEdG!(λ::T, tmax::T, f::Function, u0::T,
         load_vector!(Fn, (t[n-1],t[n]), f, τ, wτ, Ψ)
         fill!(b, zero(T))
         for ℓ = 1:n-1
-            b .= b .+ ( H[n-ℓbar] * U[ℓ] )
+            b .= b .+ ( H[n-ℓ] * U[ℓ] )
         end
         b .= Fn - ( λ * k^α ) .* b + K * U[n-1]
         U[n] = Fact \ b
