@@ -455,7 +455,7 @@ function PDEDG(κ::Float64, f::Function, U0::Vector{Float64},
         H[j,j] = 1 / (2j-1)
     end
 
-    N = ubound(t, 1)
+    N = length(t) - 1
     U = zeros(nfree*rt, N)
     Fn = zeros(nfree, rt)
     M, S = assembled_matrices(grid, κ)
@@ -463,11 +463,11 @@ function PDEDG(κ::Float64, f::Function, U0::Vector{Float64},
     S = S[1:nfree,1:nfree]
     Ψ_at_minus1 = Vector{Float64}(undef, rt)
     legendre_polys!(Ψ_at_minus1, -1.0)
-    τ, w = legendre(Mt)
-    Ψ = Array{Float64}(undef, r, M)
+    τ, w = GaussQuadrature.legendre(Mt)
+    Ψ = Array{Float64}(undef, rt, Mt)
     legendre_polys!(Ψ, τ)
     dynamic_load_vector!(Fn, t[0:1], grid, f, τ, w, Ψ)
-    b = Fn[1:nfree*rt] + kron(Ψm1, M*U0) 
+    b = Fn[1:nfree*rt] + kron(Ψ_at_minus1, M*U0) 
     Δt1 = t[1] - t[0]
     G_kron_M = kron(G, M)
     H_kron_S = kron(H, S)
@@ -576,40 +576,45 @@ DG solver for fractional PDE.
 """
 function FPDEDG(κ::Float64, f::Function, U0::Vector{Float64}, 
                grid::SpatialGrid{Float64}, t::OffsetVector{Float64},
-               rt::Int64, Mt::Int64)
+               rt::Int64, Mt::Int64, store::Store{Float64})
     α = store.α
     x, gdof = grid.x, grid.global_DoF
     nfree, nfixed = grid.nfree, grid.nfixed
 
     G = coef_G(Float64, rt)
     K = coef_K(Float64, rt, rt)
+    Nt = length(t) - 1
+    Hn = OffsetArray{Matrix{T}}(undef, 0:Nt-1)
+    for n = 0:Nt-1
+        Hn[n] = Array{T}(undef, rt, rt)
+    end
+    τ, wτ = rule(store.legendre[Mt])
+    Ψ = view(store.Ψ, 1:rt, 1:Mt)
+    legendre_polys!(Ψ, τ)
 
-    N = ubound(t, 1)
     U = zeros(nfree*rt, N)
-    Δt = diff(t[0:N])
     Fn = zeros(nfree, rt)
     M, S = assembled_matrices(grid, κ)
     M = M[1:nfree,1:nfree]
     S = S[1:nfree,1:nfree]
-    Ψm1 = legendre_polys(rt-1, -1.0)
-    τ, w = legendre(num_t_Gauss_pts)
-    Ψ = legendre_polys(rt-1, τ)
+    Ψ_at_minus1 = legendre_polys(rt-1, -1.0)
+    legendre_polys!(Ψ_at_minus1, -1.0)
     dynamic_load_vector!(Fn, t[0:1], grid, f, τ, w, Ψ)
-    b = Fn[1:nfree*rt] + kron(Ψm1, M*U0) 
+    b = Fn[1:nfree*rt] + kron(Ψ_at_minus1, M*U0) 
     Hnn = get_H_matrix(1, 1, rt, α, t)
+    coef_Hn!(Hn, 1, 0, t, Mt, store)
     G_kron_M = kron(G, M)
-    Hnn_kron_S = kron(Hnn, S)
+    Hnn_kron_S = kron(Hn[0], S)
     A = G_kron_M + Hnn_kron_S
     U[:,1] = A \ b
     K_kron_M = kron(K, M)
     for n = 2:N
-        Hnn = get_H_matrix(n, n, rt, α, t)
-        Hnn_kron_S = kron(Hnn, S)
+        coef_Hn!(Hn, n, n-1, t, Mt, store)
+        Hnn_kron_S = kron(Hn[0], S)
         A = G_kron_M + Hnn_kron_S
         fill!(b, 0.0)
         for l = 1:n-1
-            Hnl = get_H_matrix(n, l, rt, α, t)
-            Hnl_kron_S = kron(Hnl, S)
+            Hnl_kron_S = kron(Hn[n-l], S)
             b .= b .+ Hnl_kron_S * U[:,l]
         end
         dynamic_load_vector!(Fn, t[n-1:n], grid, f, τ, w, Ψ)

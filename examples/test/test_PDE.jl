@@ -33,3 +33,20 @@ for n = 1:Nt
 end
 xlabel(L"$x$")
 ylabel(L"$t$")
+
+t[1:Nt] = [ max_t * (n/Nt)^2 for n = 1:Nt ]
+U = FractionalTimeDG.PDEDG(1.0, f, U0, grid, t, rt, Mt)
+xvals, pcwise_t, pcwise_U = FractionalTimeDG.evaluate_pcwise_poly(
+    U, t, grid, pts_per_time_interval, pts_per_space_interval)
+
+figure(2)
+Nxvals = length(xvals)
+Ntvals = pts_per_time_interval
+X = Float64[ xvals[i] for i = 1:Nxvals, j = 1:Ntvals ]
+for n = 1:Nt
+    T = Float64[ pcwise_t[j,n] for i = 1:Nxvals, j = 1:Ntvals ]
+    Z = Float64[ pcwise_U[i,j,n] for i = 1:Nxvals, j = 1:Ntvals ]
+    surf(X, T, Z)
+end
+xlabel(L"$x$")
+ylabel(L"$t$")
