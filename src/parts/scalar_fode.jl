@@ -1,4 +1,3 @@
-
 function FODEdG!(λ::T, f::Function, u0::T, t::OffsetVector{T},
                  r::Integer, M::Integer, 
                  store::Store{T}) where T <: AbstractFloat
@@ -92,4 +91,21 @@ function load_vector!(Fn::Vector{T}, In::Tuple{T,T}, f::Function,
         Fn[i] *= kn / 2
     end
 end
+
+function graded_mesh(max_t::T, cutoff_t::T, 
+                     N_outer::Integer, mg::T) where { T <: AbstractFloat }
+    k = ( max_t - cutoff_t ) / N_outer
+    N_inner = ceil(Integer, -1/expm1(log1p(-k/cutoff_t)/mg))
+    N = N_inner + N_outer
+    t = OffsetVector{T}(undef, 0:N)
+    t[0] = zero(T)
+    for n = 1:N_inner
+        t[n] = (n/N_inner)^mg * cutoff_t
+    end
+    for n = N_inner+1:N
+        t[n] = cutoff_t + (n-N_inner)*k
+    end
+    return t
+end
+
 

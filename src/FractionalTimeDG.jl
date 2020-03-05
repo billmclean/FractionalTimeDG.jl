@@ -10,6 +10,7 @@ import SparseArrays
 export Store, coef_G, coef_K, coef_H0, coef_H1
 export coef_H_uniform!, coef_Hn!
 export FODEdG!, evaluate_pcwise_poly!, reconstruction
+export legendre_polys!
 
 Γ(x) = SpecialFunctions.gamma(x)
 
@@ -40,7 +41,5 @@ include("parts/legendre_utils.jl")
 include("parts/coef_uniform.jl")
 include("parts/coef.jl")
 include("parts/scalar_fode.jl")
-include("parts/mittag-leffler.jl")
-include("parts/fem1d.jl")
 
 end # module FractionalTimeDG
