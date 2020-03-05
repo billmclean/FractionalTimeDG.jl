@@ -1,3 +1,7 @@
+using SparseArrays
+using FractionalTimeDG
+import FractionalTimeDG.rule
+
 struct SpatialGrid{T <: AbstractFloat }
     x          :: OffsetVector{T}
     global_DoF :: Vector{Vector{Int64}}
@@ -426,7 +430,7 @@ end
 function dynamic_load_vector!(Fn::Matrix{T}, In::Vector{Float64},
                               grid::SpatialGrid{T}, f::Function, 
                               τ::Vector{T}, w::Vector{T}, 
-                              Ψ::Matrix{T}) where { T <: AbstractFloat }
+                              Ψ::AbstractMatrix{T}) where { T <: AbstractFloat }
     nfree, rt = size(Fn)
     @argcheck grid.nfree == nfree
     @argcheck length(In) == 2
@@ -584,31 +588,30 @@ function FPDEDG(κ::Float64, f::Function, U0::Vector{Float64},
     G = coef_G(Float64, rt)
     K = coef_K(Float64, rt, rt)
     Nt = length(t) - 1
-    Hn = OffsetArray{Matrix{T}}(undef, 0:Nt-1)
+    Hn = OffsetArray{Matrix{Float64}}(undef, 0:Nt-1)
     for n = 0:Nt-1
-        Hn[n] = Array{T}(undef, rt, rt)
+        Hn[n] = Array{Float64}(undef, rt, rt)
     end
     τ, wτ = rule(store.legendre[Mt])
     Ψ = view(store.Ψ, 1:rt, 1:Mt)
     legendre_polys!(Ψ, τ)
 
-    U = zeros(nfree*rt, N)
+    U = zeros(nfree*rt, Nt)
     Fn = zeros(nfree, rt)
     M, S = assembled_matrices(grid, κ)
     M = M[1:nfree,1:nfree]
     S = S[1:nfree,1:nfree]
-    Ψ_at_minus1 = legendre_polys(rt-1, -1.0)
+    Ψ_at_minus1 = Array{Float64}(undef, rt)
     legendre_polys!(Ψ_at_minus1, -1.0)
-    dynamic_load_vector!(Fn, t[0:1], grid, f, τ, w, Ψ)
+    dynamic_load_vector!(Fn, t[0:1], grid, f, τ, wτ, Ψ)
     b = Fn[1:nfree*rt] + kron(Ψ_at_minus1, M*U0) 
-    Hnn = get_H_matrix(1, 1, rt, α, t)
     coef_Hn!(Hn, 1, 0, t, Mt, store)
     G_kron_M = kron(G, M)
     Hnn_kron_S = kron(Hn[0], S)
     A = G_kron_M + Hnn_kron_S
     U[:,1] = A \ b
     K_kron_M = kron(K, M)
-    for n = 2:N
+    for n = 2:Nt
         coef_Hn!(Hn, n, n-1, t, Mt, store)
         Hnn_kron_S = kron(Hn[0], S)
         A = G_kron_M + Hnn_kron_S
@@ -617,11 +620,11 @@ function FPDEDG(κ::Float64, f::Function, U0::Vector{Float64},
             Hnl_kron_S = kron(Hn[n-l], S)
             b .= b .+ Hnl_kron_S * U[:,l]
         end
-        dynamic_load_vector!(Fn, t[n-1:n], grid, f, τ, w, Ψ)
+        dynamic_load_vector!(Fn, t[n-1:n], grid, f, τ, wτ, Ψ)
         b .= Fn[1:nfree*rt] .+ K_kron_M * U[:,n-1] .- b
         U[:,n] = A \ b
     end
-    return reshape(U, nfree, rt, N)
+    return reshape(U, nfree, rt, Nt)
 end
 
 """
@@ -686,4 +689,3 @@ function functional(pcwise_U::Array{Float64}, pcwise_t::Array{Float64},
     Fnctl = zeros(pts_per_time_interval, N)
 
 end
-

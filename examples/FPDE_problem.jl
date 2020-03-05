@@ -1,10 +1,9 @@
-import FractionalTimeDG.SpatialGrid
-import FractionalTimeDG.evaluate_pcwise_poly
-import FractionalTimeDG.evaluate_fem1d_soln!
 import GaussQuadrature.legendre
 using FractionalTimeDG
 using ArgCheck 
 using OffsetArrays
+
+include("FEM1D.jl")
 
 const L = 2.0
 const max_t = 2.0
