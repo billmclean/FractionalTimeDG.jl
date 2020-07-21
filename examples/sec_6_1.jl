@@ -7,7 +7,7 @@ sample = [1, 2, 10, 100, 1000]
 rmax = 6
 Mmax = 2rmax
 store = FractionalTimeDG.Store(α, rmax, Mmax)
-version = 1
+version = 2
 
 function coef_uniform(sample, r, α, M, version)
     Ns = length(sample) 

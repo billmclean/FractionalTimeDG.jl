@@ -8,8 +8,9 @@ M = 201
 FractionalTimeDG.legendre_polys!(Ψ, τ)
 
 figure(1)
+fmt = [":", "--", "-.", "-"]
 for r = 1:rmax-1
-    plot(τ, Ψ[r+1,:]-Ψ[r,:])
+    plot(τ, Ψ[r+1,:]-Ψ[r,:], fmt[r])
 end
 grid(true)
 xlabel(L"$\tau$")

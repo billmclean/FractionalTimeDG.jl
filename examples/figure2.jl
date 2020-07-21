@@ -38,7 +38,10 @@ end
 γ = max_antidiags(H)
 
 figure(2)
-loglog(ℓ, γ)
+fmt = [":", "--", "-.", "-", ":", "--", "-."]
+for m = 2:2r
+    loglog(ℓ, γ[:,m-1], fmt[m-1])
+end
 legend([latexstring("i+j=$m") for m = 2:2r])
 grid(true)
 xlabel(L"$\bar\ell$", fontsize=12)

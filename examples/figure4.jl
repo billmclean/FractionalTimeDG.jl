@@ -35,7 +35,7 @@ line3 = semilogy(trans_pcwise_t[:,3], abs.(trans_pcwise_err[:,3]), "+",
 line4 = semilogy(trans_pcwise_t[:,4], abs.(trans_pcwise_err[:,4]), "x", 
                  markersize=4)
 legend((line0[1], line1[1], line2[1], line3[1], line4[1]),
-       (L"$\hat E(t)$", L"$j=0$", L"j=1", L"j=2", L"j=3"))
+       (L"$\widehat E(t)$", L"$j=0$", L"j=1", L"j=2", L"j=3"))
 xlabel(L"$t$", size=12)
 ylabel("Error")
 grid(true)

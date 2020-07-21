@@ -1,6 +1,7 @@
 import GaussQuadrature
 using OffsetArrays
 using PyPlot
+import FractionalTimeDG.graded_mesh
 
 include("FPDE_problem.jl")
 
@@ -37,7 +38,7 @@ line1 = semilogy(t[0:Nt-1], abs.(jump[0:Nt-1]), "C0o")
 line2 = semilogy(pcwise_t, Uerr, "C1-")
 line3 = semilogy(pcwise_t, Uhaterr, "k:")
 legend((line1[1], line2[2], line3[1]),
-       (L"jump in $U$", L"error in $U$", L"error in $\hat U$"))
+       (L"jump in $U$", L"error in $U$", L"error in $\widehat U$"))
 xlabel(L"$t$")
 PyPlot.grid(true)
 savefig("fig6b.pdf")
