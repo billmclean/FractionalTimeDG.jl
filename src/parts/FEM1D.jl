@@ -1,7 +1,3 @@
-using SparseArrays
-using FractionalTimeDG
-import FractionalTimeDG.rule
-
 struct SpatialGrid{T <: AbstractFloat }
     x          :: OffsetVector{T}
     global_DoF :: Vector{Vector{Int64}}

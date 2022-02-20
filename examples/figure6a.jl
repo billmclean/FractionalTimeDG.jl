@@ -36,4 +36,4 @@ legend((line1[1], line2[2], line3[1]),
        (L"jump in $U$", L"error in $U$", L"error in $\widehat U$"))
 xlabel(L"$t$")
 PyPlot.grid(true)
-savefig("fig6a.pdf")
+savefig("fig6a.eps")

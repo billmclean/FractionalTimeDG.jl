@@ -45,4 +45,4 @@ end
 legend([latexstring("i+j=$m") for m = 2:2r])
 grid(true)
 xlabel(L"$\bar\ell$", fontsize=12)
-savefig("fig2.pdf")
+savefig("fig2.eps")

@@ -3,7 +3,7 @@ using FractionalTimeDG
 using ArgCheck 
 using OffsetArrays
 
-include("FEM1D.jl")
+#include("FEM1D.jl")
 
 const L = 2.0
 const max_t = 2.0

@@ -16,5 +16,5 @@ grid(true)
 xlabel(L"$\tau$")
 s = LaTeXString[latexstring("\$r=", r, "\$") for r = 1:rmax-1]
 legend(s)
-savefig("fig1.pdf")
+savefig("fig1.eps")
 

@@ -39,4 +39,4 @@ legend((line0[1], line1[1], line2[1], line3[1], line4[1]),
 xlabel(L"$t$", size=12)
 ylabel("Error")
 grid(true)
-savefig("fig4.pdf")
+savefig("fig4.eps")
