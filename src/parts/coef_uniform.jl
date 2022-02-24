@@ -269,3 +269,14 @@ function coef_H_uniform_ver2!(H::OffsetVector{Matrix{T}}, rng::UnitRange,
         end
     end
 end
+
+"""
+    coef_H(r)
+
+Returns diagonal matrix `H` for the classical case `α=1`.
+"""
+function coef_H(::Type{T}, r::Integer) where T <: AbstractFloat
+    d = T[ one(T) / (2j+1) for j = 0:r-1 ]
+    return LinearAlgebra.Diagonal(d)
+end
+

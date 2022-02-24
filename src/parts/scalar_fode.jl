@@ -108,4 +108,31 @@ function graded_mesh(max_t::T, cutoff_t::T,
     return t
 end
 
-
+function ODEdG!(λ::T, tmax::T, f::Function, u0::T, 
+                N::Integer, r::Integer, M::Integer, 
+                ) where T <: AbstractFloat
+    G = coef_G(T, r)
+    K = coef_K(T, r, r)
+    H = coef_H(T, r)
+    U = Vector{Vector{T}}(undef, N)
+    k = tmax / N
+    t_ = range(zero(T), tmax, length=N+1)
+    t = OffsetArray(t_, 0:N)
+    τ, wτ = GaussQuadrature.legendre(M)
+    Ψ = Matrix{T}(undef, r, M)
+    legendre_polys!(Ψ, τ)
+    Fn = Array{T}(undef, r)
+    load_vector!(Fn, (t[0],t[1]), f, τ, wτ, Ψ)
+    Ψ_at_minus1 = Vector{T}(undef, r)
+    legendre_polys!(Ψ_at_minus1, -one(T))
+    A = G + ( λ * k ) * H
+    b = copy(Fn) + Ψ_at_minus1 * u0
+    Fact = LinearAlgebra.lu(A)
+    U[1] = Fact \ b
+    for n = 2:N
+        load_vector!(Fn, (t[n-1],t[n]), f, τ, wτ, Ψ)
+        b .= Fn + K * U[n-1]
+        U[n] = Fact \ b
+    end
+    return t, U
+end
