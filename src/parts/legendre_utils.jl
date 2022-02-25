@@ -134,12 +134,11 @@ function evaluate_pcwise_poly!(pcwise_t::Matrix{T}, pcwise_U::Matrix{T},
                                τ::AbstractVector{T}, store::Store{T}
                               ) where { T <: AbstractFloat }
     N = length(U)
-    ppI = length(τ)
-    @argcheck size(pcwise_t) == (ppI, N)
-    @argcheck size(pcwise_U) == (ppI, N)
+    pts_per_interval = length(τ)
+    @argcheck size(pcwise_t) == (pts_per_interval, N)
+    @argcheck size(pcwise_U) == (pts_per_interval, N)
     @argcheck length(t) == N+1
     rmax = store.rmax
-    pts_per_interval = length(τ)
     Ψ = view(store.Ψ, 1:rmax, 1:pts_per_interval)
     legendre_polys!(Ψ, τ)
     for n = 1:N
