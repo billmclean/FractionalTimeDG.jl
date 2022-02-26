@@ -33,3 +33,6 @@ ylabel(L"$U$", size=14)
 xticks((0.0, 1/2, 1, 3/2, 2), ("0.0", "0.5", "1.0", "1.5", "2.0"))
 grid(true)
 
+figure(2)
+line1 = plot(pcwise_t, pcwisie_U-pcwise_u, "c")
+JU = jumps(U, t, u0)

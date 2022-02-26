@@ -107,7 +107,7 @@ function deriv_legendre_polys!(dP::AbstractMatrix{T}, τ::AbstractVector{T}
 end
 
 """
-    pcwise_t, pcwise_U = evaluate_pcwise_poly(U, t, store)
+    pcwise_t, pcwise_U = evaluate_pcwise_poly(U, t, ppI, store)
 """
 function evaluate_pcwise_poly!(U::Vector{Vector{T}}, t::OffsetVector{T},
                                ppI::Integer, store::Store{T}
@@ -238,4 +238,27 @@ function reconstruction(U::Vector{Vector{T}}, u0::T,
         end
     end
     return Uhat
+end
+
+function jumps(U::Vector{Vector{T}}, t::OffsetVector{T}, 
+	u0::T) where T <: AbstractFloat
+    N = length(t) - 1
+    JU = OffsetVector(undef, 0:N-1)
+    U_left = u0
+    U_right = zero(T)
+    pow = ones(T, r)
+    pow[2:2:r] = -one(T)
+    for n = 1:N
+	U_left = zero(T)
+	for j = 1:r
+	    U_left += pow[j] * U[n][j]
+	end
+	JU[n-1] = U_left
+    end
+    JU[1] -= u0
+    for n = 2:N
+	U_right = sum(U[n-1])
+	JU[n-1] -= U_right
+    end
+    return JU
 end
