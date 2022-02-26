@@ -274,7 +274,7 @@ function jumps(U::Vector{Vector{T}}, t::OffsetVector{T},
     return JU
 end
 
-function approx_dG_error(JU::OffsetVector{T}, t::OffsetVector{T},
+function dG_error_estimator(JU::OffsetVector{T}, t::OffsetVector{T},
         r::Integer, τ::AbstractVector{T}) where T <: AbstractFloat
     N = length(t) - 1
     pts_per_interval = length(τ)
@@ -296,7 +296,7 @@ function approx_dG_error(JU::OffsetVector{T}, t::OffsetVector{T},
     return pcwise_t, pcwise_approx_err
 end
 
-function approx_dG_error(JU::OffsetVector{T}, t::OffsetVector{T},
+function dG_error_estimator(JU::OffsetVector{T}, t::OffsetVector{T},
         r::Integer, pts_per_interval::Integer) where T <: AbstractFloat
     τ = range(-1.0, 1.0, length=pts_per_interval)
     return approx_dG_error(JU, t, r, τ)
