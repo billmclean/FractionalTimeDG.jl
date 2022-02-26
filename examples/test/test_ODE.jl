@@ -1,5 +1,5 @@
 import FractionalTimeDG: Store, ODEdG!, reconstruction_pts, 
-                         evaluate_pcwise_poly!
+                         evaluate_pcwise_poly!, jumps, approx_dG_error
 
 using PyPlot
 #using Polynomials: polyval
@@ -34,5 +34,10 @@ xticks((0.0, 1/2, 1, 3/2, 2), ("0.0", "0.5", "1.0", "1.5", "2.0"))
 grid(true)
 
 figure(2)
-line1 = plot(pcwise_t, pcwisie_U-pcwise_u, "c")
 JU = jumps(U, t, u0)
+pcwise_tx, pcwise_approx_err = approx_dG_error(JU, t, r, pts_per_interval)
+line1 = plot(pcwise_t, pcwise_U-pcwise_u, "C0")
+line2 = plot(pcwise_tx, pcwise_approx_err, "C1:")
+xticks((0.0, 1/2, 1, 3/2, 2), ("0.0", "0.5", "1.0", "1.5", "2.0"))
+legend((line1[1], line2[1]), (L"$U-u$", "approx error"))
+grid(true)

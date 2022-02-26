@@ -240,14 +240,25 @@ function reconstruction(U::Vector{Vector{T}}, u0::T,
     return Uhat
 end
 
+function max_order(U::Vector{Vector{T}}) where T <: AbstractFloat
+    N = length(U)
+    r = length(U[1])
+    for n = 2:N
+        rn = length(U[n])
+        r = max(r, rn)
+    end
+    return r
+end
+
 function jumps(U::Vector{Vector{T}}, t::OffsetVector{T}, 
 	u0::T) where T <: AbstractFloat
     N = length(t) - 1
-    JU = OffsetVector(undef, 0:N-1)
+    r = max_order(U)
+    JU = OffsetVector{T}(undef, 0:N-1)
     U_left = u0
     U_right = zero(T)
     pow = ones(T, r)
-    pow[2:2:r] = -one(T)
+    pow[2:2:r] .= -one(T)
     for n = 1:N
 	U_left = zero(T)
 	for j = 1:r
@@ -255,10 +266,38 @@ function jumps(U::Vector{Vector{T}}, t::OffsetVector{T},
 	end
 	JU[n-1] = U_left
     end
-    JU[1] -= u0
+    JU[0] -= u0
     for n = 2:N
 	U_right = sum(U[n-1])
 	JU[n-1] -= U_right
     end
     return JU
+end
+
+function approx_dG_error(JU::OffsetVector{T}, t::OffsetVector{T},
+        r::Integer, τ::AbstractVector{T}) where T <: AbstractFloat
+    N = length(t) - 1
+    pts_per_interval = length(τ)
+    pcwise_t = Matrix{T}(undef, pts_per_interval, N)
+    pcwise_approx_err = similar(pcwise_t)
+    Ψ = Matrix{T}(undef, r+1, pts_per_interval)
+    legendre_polys!(Ψ, τ)
+    if r % 2 == 0
+        sign = 1
+    else
+        sign = -1
+    end
+    for n = 1:N
+        for m = 1:pts_per_interval
+            pcwise_t[m,n] = ( (1-τ[m])*t[n-1] + (1+τ[m])*t[n] ) / 2
+            pcwise_approx_err[m,n] = (sign/2) * JU[n-1] * ( Ψ[r+1,m] - Ψ[r,m] )
+        end
+    end
+    return pcwise_t, pcwise_approx_err
+end
+
+function approx_dG_error(JU::OffsetVector{T}, t::OffsetVector{T},
+        r::Integer, pts_per_interval::Integer) where T <: AbstractFloat
+    τ = range(-1.0, 1.0, length=pts_per_interval)
+    return approx_dG_error(JU, t, r, τ)
 end
