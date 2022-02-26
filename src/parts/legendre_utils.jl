@@ -299,5 +299,5 @@ end
 function dG_error_estimator(JU::OffsetVector{T}, t::OffsetVector{T},
         r::Integer, pts_per_interval::Integer) where T <: AbstractFloat
     τ = range(-1.0, 1.0, length=pts_per_interval)
-    return approx_dG_error(JU, t, r, τ)
+    return dG_error_estimator(JU, t, r, τ)
 end
