@@ -199,10 +199,18 @@ end
 """
 function reconstruction(U::Vector{Vector{T}}, u0::T, 
                         store::Store{T}) where T <: AbstractFloat
+    Uhat = reconstruction(U, u0, store.rmax)
+    return Uhat
+end
+
+"""
+    Uhat = reconstruction(U, u0, rmax)
+"""
+function reconstruction(U::Vector{Vector{T}}, u0::T, 
+	                r::Integer) where T <: AbstractFloat
     N = length(U)
-    rmax = store.rmax
     Uhat = Vector{Vector{T}}(undef, N)
-    pow = OffsetArray{T}(undef, 0:rmax)
+    pow = OffsetArray{T}(undef, 0:r)
     pow[0] = one(T)
     for n = 1:rmax
         pow[n] = -pow[n-1]
