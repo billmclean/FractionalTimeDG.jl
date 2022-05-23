@@ -207,10 +207,10 @@ end
     Uhat = reconstruction(U, u0, rmax)
 """
 function reconstruction(U::Vector{Vector{T}}, u0::T, 
-	                r::Integer) where T <: AbstractFloat
+	                rmax::Integer) where T <: AbstractFloat
     N = length(U)
     Uhat = Vector{Vector{T}}(undef, N)
-    pow = OffsetArray{T}(undef, 0:r)
+    pow = OffsetArray{T}(undef, 0:rmax)
     pow[0] = one(T)
     for n = 1:rmax
         pow[n] = -pow[n-1]

@@ -1,6 +1,5 @@
 include("sec_6_2.jl")
 using Printf
-using OffsetArrays
 
 r = 3
 M = 8

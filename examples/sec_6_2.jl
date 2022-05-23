@@ -2,6 +2,7 @@ using FractionalTimeDG
 import FractionalTimeDG
 using SpecialFunctions: erfcx
 import GaussQuadrature
+using OffsetArrays
 
 T = Float64
 two = parse(T, "2")
