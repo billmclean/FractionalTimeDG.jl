@@ -118,7 +118,7 @@ function ODEdG!(λ::T, tmax::T, f::Function, u0::T,
     k = tmax / N
     t_ = range(zero(T), tmax, length=N+1)
     t = OffsetArray(t_, 0:N)
-    τ, wτ = GaussQuadrature.legendre(M)
+    τ, wτ = GaussQuadrature.legendre(T, M)
     Ψ = Matrix{T}(undef, r, M)
     legendre_polys!(Ψ, τ)
     Fn = Array{T}(undef, r)

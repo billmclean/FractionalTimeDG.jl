@@ -15,7 +15,7 @@ u0(x) = C0 * x * (L-x)
 f(x,t) = Cf * t * exp(-t)
 
 function refsoln(x, t, α, N)
-    return Bromich_integral(t, z -> uhat(x, z, α), N)
+    return Bromwich_integral(t, z -> uhat(x, z, α), N)
 end
 
 function uhat(x::T, z::Complex{T}, α::T) where T <: AbstractFloat
@@ -28,13 +28,13 @@ function uhat(x::T, z::Complex{T}, α::T) where T <: AbstractFloat
 end
 
 """
-    Bromich_integral(t, F, N)
+    Bromwich_integral(t, F, N)
 
 Evaluates `1/(2πi)` times the integral of `exp(zt)F(z) dz` along a
 Hankel contour, assuming `F(z)` is analytic in the cut plane
 `|arg(z)|<π` and `F(conj(z)) = conj(F(z))`.
 """
-function Bromich_integral(t::Float64, F::Function, N::Integer)
+function Bromwich_integral(t::Float64, F::Function, N::Integer)
     μ = 4.492075 * N / t
     ϕ = 1.172104
     h = 1.081792 / N

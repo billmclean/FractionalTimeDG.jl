@@ -107,7 +107,7 @@ function deriv_legendre_polys!(dP::AbstractMatrix{T}, τ::AbstractVector{T}
 end
 
 """
-    pcwise_t, pcwise_U = evaluate_pcwise_poly(U, t, ppI, store)
+    pcwise_t, pcwise_U = evaluate_pcwise_poly!(U, t, ppI, store)
 """
 function evaluate_pcwise_poly!(U::Vector{Vector{T}}, t::OffsetVector{T},
                                ppI::Integer, store::Store{T}
